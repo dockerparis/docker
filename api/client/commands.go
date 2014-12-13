@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pot"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
@@ -1204,6 +1205,8 @@ func (cli *DockerCli) CmdPot(args ...string) error {
 	if err := cmd.Parse(args); err != nil {
 		return nil
 	}
+	p := pot.NewPot()
+	p.Run()
 	return nil
 }
 
