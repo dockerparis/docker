@@ -12,7 +12,6 @@ import (
 	gnc "code.google.com/p/goncurses"
 	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/units"
-	"code.google.com/p/goncurses"
 )
 
 type Pot struct {
@@ -63,141 +62,35 @@ var (
 )
 
 // Returns the list of running containers as well as internal processes
-func (pot *Pot) Snapshot() {
+func (pot *Pot) Snapshot() []Container {
+	res := make([]Container, 0, 16)
+
 	v := url.Values{}
 	v.Set("all", "1")
 	body, _, err := readBody(pot.c.call("GET", "/containers/json?"+v.Encode(), nil, false))
 	if err != nil {
 		fmt.Printf("readBody failed %v\n", err)
-		return
+		return res
 	}
 	outs := engine.NewTable("Created", 0)
 	if _, err = outs.ReadListFrom(body); err != nil {
 		fmt.Printf("what?\n")
-		return
+		return res
 	}
 	for _, out := range outs.Data {
 		var c Container
 
 		c.container.Id = out.Get("Id")
 		c.container.Command = strconv.Quote(out.Get("Command"))
+		c.container.Image = "Soon"
 		c.container.Name = out.GetList("Names")[0]
 		c.container.Uptime = units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0)))
 		c.container.Status = out.Get("Status")
 
-		fmt.Printf("snap: %s\n", c.container)
+		res = append(res, c)
 	}
-}
 
-var cnts = []Container{
-	{
-		container: ContainerLine{
-			Name:  "93%%",
-			Image: "4242",
-			CommonLine: CommonLine{
-				Id: "12",
-			},
-		},
-		processes: []ProcessLine{
-			{
-				Name:  "64%%",
-				Image: "908",
-				CommonLine: CommonLine{
-					Id: "9",
-				},
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
+	return res
 }
 
 func printActive(win *gnc.Window, s string, lc int, i int) {
@@ -213,9 +106,9 @@ func printActive(win *gnc.Window, s string, lc int, i int) {
 	}
 }
 
-func update(win *gnc.Window, lc int) {
+func (pot *Pot) update(win *gnc.Window, lc int) {
 	ss := make([]string, 0, 10)
-	for _, cnt := range cnts {
+	for _, cnt := range pot.Snapshot() {
 		ss = append(ss, cnt.container.String())
 		for _, proc := range cnt.processes {
 			ss = append(ss, proc.String())
@@ -238,14 +131,6 @@ func update(win *gnc.Window, lc int) {
 }
 
 func (pot *Pot) Run() {
-	// mxs (remove this to test)
-	for {
-		fmt.Printf("Snapshotting\n")
-		pot.Snapshot()
-		time.Sleep(1 * 1*1e9)
-	}
-	// /mxs
-
 	win, err := gnc.Init()
 	win.Keypad(true)
 	gnc.Echo(false)
@@ -288,7 +173,7 @@ func (pot *Pot) Run() {
 		win.AttrOn(gnc.A_REVERSE)
 		win.Println(containerTitle)
 		win.AttrOff(gnc.A_REVERSE)
-		update(win, lc)
+		pot.update(win, lc)
 		win.Refresh()
 	}
 }
