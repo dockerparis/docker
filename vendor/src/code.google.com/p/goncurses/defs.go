@@ -4,7 +4,7 @@
 
 package goncurses
 
-// #cgo !windows pkg-config: ncurses
+// #cgo LDFLAGS: -lncurses
 // #include <curses.h>
 import "C"
 

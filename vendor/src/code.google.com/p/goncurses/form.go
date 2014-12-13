@@ -6,7 +6,7 @@
 
 package goncurses
 
-// #cgo pkg-config: form
+// #cgo LDFLAGS: -lform
 // #include <form.h>
 // #include <stdlib.h>
 import "C"

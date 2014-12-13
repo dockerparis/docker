@@ -4,7 +4,7 @@
 
 package goncurses
 
-// #cgo !windows pkg-config: panel
+// #cgo LDFLAGS: -lpanel
 // #include <panel.h>
 // #include <curses.h>
 import "C"

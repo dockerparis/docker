@@ -7,7 +7,7 @@
 package goncurses
 
 /*
-#cgo pkg-config: menu
+#cgo LDFLAGS: -lmenu
 #include <menu.h>
 #include <stdlib.h>
 

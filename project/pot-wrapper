@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+LD_LIBRARY_PATH=$(dirname $0)/libs $(dirname $0)/docker-*  $@
