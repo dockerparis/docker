@@ -1,11 +1,10 @@
 package client
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
-	"text/tabwriter"
+	"strings"
 	"time"
 
 	"code.google.com/p/goncurses"
@@ -32,13 +31,27 @@ type ContainerLine struct {
 	CommonLine        // same props as processes
 }
 
+func (c *ContainerLine) String() string {
+	return fmt.Sprintf(strings.Join(
+		[]string{c.Name, c.Image, c.Id, c.Command,
+			c.Uptime, c.Status, c.CPU, c.RAM}, "\t"))
+}
+
 // ProcessLine contains information about a process
 type ProcessLine ContainerLine
 
-type Containe struct {
+func (c *ProcessLine) String() string {
+	return fmt.Sprintf(strings.Join(
+		[]string{"", "", c.Id, c.Command,
+			c.Uptime, c.Status, c.CPU, c.RAM}, "\t"))
+}
+
+type Container struct {
 	container ContainerLine // information about the container
 	processes []ProcessLine // information about the processes
 }
+
+var containerTitle = "Name\tImage\tId\tCommand\tUptime\tStatus\tCPU\tRAM"
 
 // Returns the list of running containers as well as internal processes
 func (pot *Pot) Snapshot() {
@@ -48,68 +61,80 @@ func (pot *Pot) Snapshot() {
 	}
 }
 
-type Container struct {
-	Cpu   string
-	Port  string
-	State string
-}
-
-var m = map[string]Container{
-	"pomme":   Container{"93%", "4242", "running"},
-	"poire":   Container{"43.7%", "9754", "killed"},
-	"haricot": Container{"72.5%", "3452", "sleeping"},
-}
-
-func test(stdscr *goncurses.Window, c chan goncurses.Key) {
-	for {
-		c <- stdscr.GetChar()
-	}
-}
-
-func key(k goncurses.Key) bool {
-	switch k {
-	case 'q':
-		return false
-	default:
-		return true
-	}
-
+var cnts = []Container{
+	{
+		container: ContainerLine{
+			Name:  "93%%",
+			Image: "4242",
+			CommonLine: CommonLine{
+				Id: "12",
+			},
+		},
+		processes: []ProcessLine{
+			{
+				Name:  "64%%",
+				Image: "908",
+				CommonLine: CommonLine{
+					Id: "9",
+				},
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
 }
 
 func (pot *Pot) Run() {
-	stdscr, err := goncurses.Init()
+	win, err := goncurses.Init()
+
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	defer goncurses.End()
+
 	k := make(chan goncurses.Key)
 	t := time.Tick(time.Second)
 
-	go test(stdscr, k)
+	go func(scr *goncurses.Window, c chan goncurses.Key) {
+		for {
+			c <- scr.GetChar()
+		}
+	}(win, k)
 	for {
-		stdscr.Erase()
+		win.Erase()
 		select {
+
 		case kk := <-k:
-			stdscr.Println("key pressed!")
-			if !key(kk) {
+
+			switch kk {
+
+			case 'q':
 				return
 			}
+
 		case <-t:
 			o, _ := exec.Command("uptime").Output()
-			stdscr.Printf("%s\n", o)
+			win.Printf("%s\n", o)
 
-			b := new(bytes.Buffer)
-			t := new(tabwriter.Writer)
-			t.Init(b, 0, 8, 1, '\t', tabwriter.AlignRight)
-			fmt.Fprintln(t, "a\tb\tc\td\t")
-			for key, val := range m {
-				fmt.Fprintf(t, "%s\t%s\t%s\t%s\n", key, val.Cpu, val.Port, val.State)
+			win.AttrOn(goncurses.A_REVERSE)
+			win.Println(containerTitle)
+			win.AttrOff(goncurses.A_REVERSE)
+			for _, cnt := range cnts {
+				win.Println(cnt.container.String())
+				for _, proc := range cnt.processes {
+					win.Println(proc.String())
+				}
 			}
-			t.Flush()
-			stdscr.Printf("%s", b.Bytes())
 		}
-		stdscr.Refresh()
+		win.Refresh()
 	}
 }
 
