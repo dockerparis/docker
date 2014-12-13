@@ -41,6 +41,7 @@ RUN	apt-get update && apt-get install -y \
 	libsqlite3-dev \
 	lxc=1.0* \
 	mercurial \
+	ncurses-dev \
 	parallel \
 	pkg-config \
 	reprepro \
@@ -82,8 +83,6 @@ RUN	go get golang.org/x/tools/cmd/cover
 
 # TODO replace FPM with some very minimal debhelper stuff
 RUN	gem install --no-rdoc --no-ri fpm --version 1.3.2
-
-RUN apt-get install -y ncurses-dev
 
 # Install man page generator
 RUN mkdir -p /go/src/github.com/cpuguy83 \
