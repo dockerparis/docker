@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/goncurses"
+	gnc "code.google.com/p/goncurses"
 )
 
 type Pot struct {
@@ -51,7 +51,11 @@ type Container struct {
 	processes []ProcessLine // information about the processes
 }
 
-var containerTitle = "Name\tImage\tId\tCommand\tUptime\tStatus\tCPU\tRAM"
+var (
+	containerTitle = "Name\tImage\tId\tCommand\tUptime\tStatus\tCPU\tRAM"
+	active         = 0
+	scroll         = 0
+)
 
 // Returns the list of running containers as well as internal processes
 func (pot *Pot) Snapshot() {
@@ -89,51 +93,169 @@ var cnts = []Container{
 			},
 		},
 	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "43.7%%",
+			Image: "4385",
+			CommonLine: CommonLine{
+				Id: "1",
+			},
+		},
+	},
+}
+
+func printActive(win *gnc.Window, s string, lc int, i int) {
+	if i < scroll {
+		return
+	}
+	if active == i {
+		win.AttrOn(gnc.A_REVERSE)
+		win.Println(s)
+		win.AttrOff(gnc.A_REVERSE)
+	} else {
+		win.Println(s)
+	}
+}
+
+func update(win *gnc.Window, lc int) {
+	ss := make([]string, 0, 10)
+	for _, cnt := range cnts {
+		ss = append(ss, cnt.container.String())
+		for _, proc := range cnt.processes {
+			ss = append(ss, proc.String())
+		}
+	}
+	if active < 0 {
+		active++
+	} else if active >= len(ss) {
+		active--
+	}
+	if active > scroll+lc-1 {
+		scroll++
+	}
+	if active < scroll {
+		scroll--
+	}
+	for i, s := range ss {
+		printActive(win, s, lc, i)
+	}
 }
 
 func (pot *Pot) Run() {
-	win, err := goncurses.Init()
+	win, err := gnc.Init()
+	win.Keypad(true)
+	gnc.Echo(false)
+	gnc.Cursor(0)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer goncurses.End()
+	defer gnc.End()
 
-	k := make(chan goncurses.Key)
+	k := make(chan gnc.Key)
 	t := time.Tick(time.Second)
 
-	go func(scr *goncurses.Window, c chan goncurses.Key) {
+	go func(scr *gnc.Window, c chan gnc.Key) {
 		for {
 			c <- scr.GetChar()
 		}
 	}(win, k)
 	for {
-		win.Erase()
+		my, _ := win.MaxYX()
+		lc := my - 1 // size max of y - header (1)
 		select {
-
 		case kk := <-k:
-
 			switch kk {
-
 			case 'q':
 				return
+			case gnc.KEY_DOWN:
+				active = active + 1
+			case gnc.KEY_UP:
+				active = active - 1
 			}
-
 		case <-t:
-			o, _ := exec.Command("uptime").Output()
-			win.Printf("%s\n", o)
-
-			win.AttrOn(goncurses.A_REVERSE)
-			win.Println(containerTitle)
-			win.AttrOff(goncurses.A_REVERSE)
-			for _, cnt := range cnts {
-				win.Println(cnt.container.String())
-				for _, proc := range cnt.processes {
-					win.Println(proc.String())
-				}
-			}
 		}
+		win.Erase()
+		o, _ := exec.Command("uptime").Output()
+		win.Printf("%s\n", o)
+
+		win.AttrOn(gnc.A_REVERSE)
+		win.Println(containerTitle)
+		win.AttrOff(gnc.A_REVERSE)
+		update(win, lc)
 		win.Refresh()
 	}
 }
