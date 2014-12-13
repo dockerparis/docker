@@ -1199,6 +1199,14 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	return cli.stream("POST", "/images/create?"+v.Encode(), in, cli.out, nil)
 }
 
+func (cli *DockerCli) CmdPot(args ...string) error {
+	cmd := cli.Subcmd("pot", "", "Interactive containers viewer")
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
+	return nil
+}
+
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry")
 	if err := cmd.Parse(args); err != nil {

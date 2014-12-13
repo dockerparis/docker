@@ -85,7 +85,7 @@ func init() {
 			{"logs", "Fetch the logs of a container"},
 			{"port", "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT"},
 			{"pause", "Pause all processes within a container"},
-			{"pot", "Interactive container viewer"},
+			{"pot", "Interactive containers viewer"},
 			{"ps", "List containers"},
 			{"pull", "Pull an image or a repository from a Docker registry server"},
 			{"push", "Push an image or a repository to a Docker registry server"},
