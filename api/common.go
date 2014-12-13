@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	APIVERSION        version.Version = "1.16"
+	APIVERSION        version.Version = "1.15" // mxs ultra-hack, not safe blabla
 	DEFAULTHTTPHOST                   = "127.0.0.1"
 	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
 )

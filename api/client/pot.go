@@ -2,13 +2,18 @@ package client
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	gnc "code.google.com/p/goncurses"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/units"
 )
 
 type Pot struct {
@@ -59,122 +64,35 @@ var (
 )
 
 // Returns the list of running containers as well as internal processes
-func (pot *Pot) Snapshot() {
-	_, _, err := pot.c.call("GET", "/containers/", nil, false)
-	if err != nil {
-		return
-	}
-}
+func (pot *Pot) Snapshot() []Container {
+	res := make([]Container, 0, 16)
 
-var cnts = []Container{
-	{
-		container: ContainerLine{
-			Name:  "93%%",
-			Image: "4242",
-			CommonLine: CommonLine{
-				Id: "12",
-			},
-		},
-		processes: []ProcessLine{
-			{
-				Name:  "64%%",
-				Image: "908",
-				CommonLine: CommonLine{
-					Id: "9",
-				},
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "48",
-			CommonLine: CommonLine{
-				Id: "41",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "4.7%%",
-			Image: "435",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.11%%",
-			Image: "4390",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "3.7%%",
-			Image: "45",
-			CommonLine: CommonLine{
-				Id: "16",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
+	v := url.Values{}
+	v.Set("all", "1")
+	body, _, err := readBody(pot.c.call("GET", "/containers/json?"+v.Encode(), nil, false))
+	if err != nil {
+		fmt.Printf("readBody failed %v\n", err)
+		return res
+	}
+	outs := engine.NewTable("Created", 0)
+	if _, err = outs.ReadListFrom(body); err != nil {
+		fmt.Printf("what?\n")
+		return res
+	}
+	for _, out := range outs.Data {
+		var c Container
+
+		c.container.Id = out.Get("Id")
+		c.container.Command = strconv.Quote(out.Get("Command"))
+		c.container.Image = "Soon"
+		c.container.Name = out.GetList("Names")[0]
+		c.container.Uptime = units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0)))
+		c.container.Status = out.Get("Status")
+
+		res = append(res, c)
+	}
+
+	return res
 }
 
 func printActive(win *gnc.Window, s string, lc int, i int) {
@@ -190,9 +108,9 @@ func printActive(win *gnc.Window, s string, lc int, i int) {
 	}
 }
 
-func update(win *gnc.Window, lc int) {
+func (pot *Pot) update(win *gnc.Window, lc int) {
 	ss := make([]string, 0, 10)
-	for _, cnt := range cnts {
+	for _, cnt := range pot.Snapshot() {
 		ss = append(ss, cnt.container.String())
 		for _, proc := range cnt.processes {
 			ss = append(ss, proc.String())
@@ -256,13 +174,13 @@ func (pot *Pot) Run() {
 			win.Refresh()
 		}
 		win.Erase()
-		//o, _ := exec.Command("uptime").Output()
-		win.Printf("%d %d %d %d\n", my, active, scroll, lc)
+		o, _ := exec.Command("uptime").Output()
+		win.Printf("%s", o)
 
 		win.AttrOn(gnc.A_REVERSE)
 		win.Println(containerTitle)
 		win.AttrOff(gnc.A_REVERSE)
-		update(win, lc)
+		pot.update(win, lc)
 		win.Refresh()
 	}
 }
