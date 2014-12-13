@@ -42,6 +42,7 @@ RUN	apt-get update && apt-get install -y \
 	lxc=1.0* \
 	mercurial \
 	parallel \
+	pkg-config \
 	reprepro \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
@@ -81,6 +82,8 @@ RUN	go get golang.org/x/tools/cmd/cover
 
 # TODO replace FPM with some very minimal debhelper stuff
 RUN	gem install --no-rdoc --no-ri fpm --version 1.3.2
+
+RUN apt-get install -y ncurses-dev
 
 # Install man page generator
 RUN mkdir -p /go/src/github.com/cpuguy83 \
