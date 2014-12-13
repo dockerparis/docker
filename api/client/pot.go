@@ -5,9 +5,14 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"strconv"
 	"time"
+	"net/url"
 
 	gnc "code.google.com/p/goncurses"
+	"github.com/docker/docker/engine"
+	"github.com/docker/docker/pkg/units"
+	"code.google.com/p/goncurses"
 )
 
 type Pot struct {
@@ -59,9 +64,28 @@ var (
 
 // Returns the list of running containers as well as internal processes
 func (pot *Pot) Snapshot() {
-	_, _, err := pot.c.call("GET", "/containers/", nil, false)
+	v := url.Values{}
+	v.Set("all", "1")
+	body, _, err := readBody(pot.c.call("GET", "/containers/json?"+v.Encode(), nil, false))
 	if err != nil {
+		fmt.Printf("readBody failed %v\n", err)
 		return
+	}
+	outs := engine.NewTable("Created", 0)
+	if _, err = outs.ReadListFrom(body); err != nil {
+		fmt.Printf("what?\n")
+		return
+	}
+	for _, out := range outs.Data {
+		var c Container
+
+		c.container.Id = out.Get("Id")
+		c.container.Command = strconv.Quote(out.Get("Command"))
+		c.container.Name = out.GetList("Names")[0]
+		c.container.Uptime = units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0)))
+		c.container.Status = out.Get("Status")
+
+		fmt.Printf("snap: %s\n", c.container)
 	}
 }
 
@@ -214,10 +238,19 @@ func update(win *gnc.Window, lc int) {
 }
 
 func (pot *Pot) Run() {
+	// mxs (remove this to test)
+	for {
+		fmt.Printf("Snapshotting\n")
+		pot.Snapshot()
+		time.Sleep(1 * 1*1e9)
+	}
+	// /mxs
+
 	win, err := gnc.Init()
 	win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
+
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
