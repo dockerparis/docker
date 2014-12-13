@@ -3,8 +3,9 @@ package client
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	gnc "code.google.com/p/goncurses"
@@ -114,7 +115,16 @@ var cnts = []Container{
 	{
 		container: ContainerLine{
 			Name:  "43.7%%",
-			Image: "4385",
+			Image: "48",
+			CommonLine: CommonLine{
+				Id: "41",
+			},
+		},
+	},
+	{
+		container: ContainerLine{
+			Name:  "4.7%%",
+			Image: "435",
 			CommonLine: CommonLine{
 				Id: "1",
 			},
@@ -122,8 +132,8 @@ var cnts = []Container{
 	},
 	{
 		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
+			Name:  "43.11%%",
+			Image: "4390",
 			CommonLine: CommonLine{
 				Id: "1",
 			},
@@ -131,19 +141,10 @@ var cnts = []Container{
 	},
 	{
 		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
+			Name:  "3.7%%",
+			Image: "45",
 			CommonLine: CommonLine{
-				Id: "1",
-			},
-		},
-	},
-	{
-		container: ContainerLine{
-			Name:  "43.7%%",
-			Image: "4385",
-			CommonLine: CommonLine{
-				Id: "1",
+				Id: "16",
 			},
 		},
 	},
@@ -177,7 +178,7 @@ var cnts = []Container{
 }
 
 func printActive(win *gnc.Window, s string, lc int, i int) {
-	if i < scroll {
+	if i < scroll || i >= scroll+lc {
 		return
 	}
 	if active == i {
@@ -198,15 +199,15 @@ func update(win *gnc.Window, lc int) {
 		}
 	}
 	if active < 0 {
-		active++
+		active = 0
 	} else if active >= len(ss) {
-		active--
+		active = len(ss) - 1
 	}
-	if active > scroll+lc-1 {
-		scroll++
+	if active >= scroll+lc {
+		scroll = active - lc + 1
 	}
 	if active < scroll {
-		scroll--
+		scroll = active
 	}
 	for i, s := range ss {
 		printActive(win, s, lc, i)
@@ -215,15 +216,17 @@ func update(win *gnc.Window, lc int) {
 
 func (pot *Pot) Run() {
 	win, err := gnc.Init()
-	win.Keypad(true)
-	gnc.Echo(false)
-	gnc.Cursor(0)
-
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	defer gnc.End()
+	win.Keypad(true)
+	gnc.Echo(false)
+	gnc.Cursor(0)
+
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, syscall.SIGWINCH)
 
 	k := make(chan gnc.Key)
 	t := time.Tick(time.Second)
@@ -233,9 +236,10 @@ func (pot *Pot) Run() {
 			c <- scr.GetChar()
 		}
 	}(win, k)
+
 	for {
 		my, _ := win.MaxYX()
-		lc := my - 1 // size max of y - header (1)
+		lc := my - 2 // size max of y - header (1)
 		select {
 		case kk := <-k:
 			switch kk {
@@ -247,10 +251,13 @@ func (pot *Pot) Run() {
 				active = active - 1
 			}
 		case <-t:
+		case <-s:
+			gnc.End()
+			win.Refresh()
 		}
 		win.Erase()
-		o, _ := exec.Command("uptime").Output()
-		win.Printf("%s\n", o)
+		//o, _ := exec.Command("uptime").Output()
+		win.Printf("%d %d %d %d\n", my, active, scroll, lc)
 
 		win.AttrOn(gnc.A_REVERSE)
 		win.Println(containerTitle)
