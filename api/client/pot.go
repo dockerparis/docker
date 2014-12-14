@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,6 +30,16 @@ const (
 	STATUS_POT     = iota // Currently displaying containers
 	STATUS_HELP           // Currently displaying help
 	STATUS_CONFIRM        // Currently waiting for confirmation
+)
+
+type Sort int
+
+const (
+	SORT_DEFAULT = iota
+	SORT_RAM
+	SORT_NAME
+	SORT_CPU
+	SORT_UPTIME
 )
 
 // CommonLine contains information common to each printed line
@@ -106,6 +117,8 @@ type Pot struct {
 	snapshot            []Container // Current containers/processes state
 	win                 *gnc.Window // goncurse Window
 	showGlobalProcesses bool        // whether or not to show processes
+	sort                Sort        // Current sort
+	reverse             bool        // Reverse sort
 }
 
 var (
@@ -224,8 +237,44 @@ func (pot *Pot) PrintActive(l PrintedLine, lc int, i int) {
 	}
 }
 
+type SortableContainers struct {
+	containers []Container
+	sort       Sort // property to sort on
+	reverse    bool // sort is reversed
+}
+
+func (a SortableContainers) Len() int { return len(a.containers) }
+func (a SortableContainers) Swap(i, j int) {
+	a.containers[i], a.containers[j] = a.containers[j], a.containers[i]
+}
+func (a SortableContainers) Less(i, j int) bool {
+	var less bool
+
+	switch a.sort {
+	case SORT_RAM:
+		less = a.containers[i].container.RAM > a.containers[j].container.RAM
+	case SORT_NAME:
+		less = a.containers[i].container.Name < a.containers[j].container.Name
+	case SORT_CPU:
+		less = a.containers[i].container.CPU > a.containers[j].container.CPU
+	case SORT_UPTIME:
+		less = a.containers[i].container.Uptime > a.containers[j].container.Uptime
+	default:
+		less = false
+	}
+
+	if a.reverse {
+		less = !less
+	}
+
+	return less
+}
+
 func (pot *Pot) UpdatePot(lc int, wc int) {
 	ss := make([]PrintedLine, 0, 42)
+
+	sort.Sort(SortableContainers{pot.snapshot, pot.sort, pot.reverse})
+
 	for _, cnt := range pot.snapshot {
 		ss = append(ss, PrintedLine{
 			cnt.container.Format(wc),
@@ -334,7 +383,7 @@ func (pot *Pot) getSelectedContainers() []int {
 
 func (pot *Pot) StopContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		// @todo: use docker API
 		exec.Command("docker", "stop", id).Run()
 	}(id)
@@ -342,7 +391,7 @@ func (pot *Pot) StopContainer(c *Container) {
 
 func (pot *Pot) StartContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		// @todo: use docker API
 		exec.Command("docker", "start", id).Run()
 	}(id)
@@ -350,7 +399,7 @@ func (pot *Pot) StartContainer(c *Container) {
 
 func (pot *Pot) RmContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		// @todo: use docker API
 		exec.Command("docker", "rm", id).Run()
 	}(id)
@@ -358,7 +407,7 @@ func (pot *Pot) RmContainer(c *Container) {
 
 func (pot *Pot) KillContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		// @todo: use docker API
 		exec.Command("docker", "kill", id).Run()
 	}(id)
@@ -366,7 +415,7 @@ func (pot *Pot) KillContainer(c *Container) {
 
 func (pot *Pot) PauseContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		// @todo: use docker API
 		exec.Command("docker", "pause", id).Run()
 	}(id)
@@ -374,7 +423,7 @@ func (pot *Pot) PauseContainer(c *Container) {
 
 func (pot *Pot) UnpauseContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		// @todo: use docker API
 		exec.Command("docker", "unpause", id).Run()
 	}(id)
@@ -454,7 +503,7 @@ func (pot *Pot) Run() {
 						pot.KillContainer(&pot.snapshot[c])
 					}
 				}
-				if kk == 'u'{
+				if kk == 'u' {
 					for i, _ := range pot.snapshot {
 						pot.snapshot[i].isSelected = false
 					}
@@ -501,6 +550,24 @@ func (pot *Pot) Run() {
 					pot.status = STATUS_POT
 				}
 			}
+			if kk == 'A' { // (default)
+				pot.sort = SORT_DEFAULT
+			}
+			if kk == 'M' { // [M]emory
+				pot.sort = SORT_RAM
+			}
+			if kk == 'N' { // [N]ame
+				pot.sort = SORT_NAME
+			}
+			if kk == 'P' { // [P]rocessor
+				pot.sort = SORT_CPU
+			}
+			if kk == 'T' { // [T]ime
+				pot.sort = SORT_UPTIME
+			}
+			if kk == 'I' { // [I]nverse
+				pot.reverse = !pot.reverse
+			}
 		case <-t:
 			pot.snapshot = pot.Snapshot()
 		case <-s:
@@ -518,6 +585,8 @@ func NewPot(c *DockerCli) *Pot {
 		[]Container{},
 		nil,
 		false, // show processes
+		SORT_DEFAULT,
+		false, // reverse sort
 	}
 }
 
