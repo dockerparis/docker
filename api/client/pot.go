@@ -335,6 +335,7 @@ func (pot *Pot) getSelectedContainers() []int {
 func (pot *Pot) StopContainer(c *Container) {
 	id := c.container.Id
 	go func (id string) {
+		// @todo: use docker API
 		exec.Command("docker", "stop", id).Run()
 	}(id)
 }
@@ -342,6 +343,7 @@ func (pot *Pot) StopContainer(c *Container) {
 func (pot *Pot) StartContainer(c *Container) {
 	id := c.container.Id
 	go func (id string) {
+		// @todo: use docker API
 		exec.Command("docker", "start", id).Run()
 	}(id)
 }
@@ -349,7 +351,16 @@ func (pot *Pot) StartContainer(c *Container) {
 func (pot *Pot) RmContainer(c *Container) {
 	id := c.container.Id
 	go func (id string) {
+		// @todo: use docker API
 		exec.Command("docker", "rm", id).Run()
+	}(id)
+}
+
+func (pot *Pot) KillContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		// @todo: use docker API
+		exec.Command("docker", "kill", id).Run()
 	}(id)
 }
 
@@ -421,6 +432,11 @@ func (pot *Pot) Run() {
 				}
 				if kk == 'A' {
 					pot.showGlobalProcesses = !pot.showGlobalProcesses
+				}
+				if kk == 'k' {
+					for _, c := range pot.getSelectedContainers() {
+						pot.KillContainer(&pot.snapshot[c])
+					}
 				}
 				if kk == 'u'{
 					for i, _ := range pot.snapshot {
