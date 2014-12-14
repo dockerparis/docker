@@ -314,6 +314,44 @@ func (pot *Pot) GetContainerByPos(line_num int) int {
 	return -1
 }
 
+func (pot *Pot) clearAndGetSelectedContainers() []int {
+	res := make([]int, 0, 5)
+	for i, c := range pot.snapshot {
+		if c.isSelected {
+			res = append(res, i)
+			pot.snapshot[i].isSelected = false
+		}
+	}
+	c := pot.GetContainerByPos(active)
+	if c != -1 {
+		if !pot.snapshot[c].isSelected {
+			res = append(res, c)
+		}
+	}
+	return res
+}
+
+func (pot *Pot) StopContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		exec.Command("docker", "stop", id).Run()
+	}(id)
+}
+
+func (pot *Pot) StartContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		exec.Command("docker", "start", id).Run()
+	}(id)
+}
+
+func (pot *Pot) RmContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		exec.Command("docker", "rm", id).Run()
+	}(id)
+}
+
 func (pot *Pot) Run() {
 	var err error
 
@@ -393,6 +431,21 @@ func (pot *Pot) Run() {
 					c := pot.GetContainerByPos(active)
 					if c != -1 {
 						pot.snapshot[c].isSelected = !pot.snapshot[c].isSelected
+					}
+				}
+				if kk == 's' {
+					for _, c := range pot.clearAndGetSelectedContainers() {
+						pot.StartContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'S' {
+					for _, c := range pot.clearAndGetSelectedContainers() {
+						pot.StopContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'r' {
+					for _, c := range pot.clearAndGetSelectedContainers() {
+						pot.RmContainer(&pot.snapshot[c])
 					}
 				}
 			case STATUS_HELP:
