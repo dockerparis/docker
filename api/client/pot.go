@@ -27,9 +27,10 @@ const (
 )
 
 const (
-	COLOR_CONTAINER = 2
-	COLOR_SELECTION = 3
-	COLOR_HELP      = 4
+	COLOR_CONTAINER = iota + 2
+	COLOR_SELECTION
+	COLOR_HELP
+	COLOR_RUNNING
 )
 
 type Status int // What we are doing
@@ -121,6 +122,7 @@ type PrintedLine struct {
 	isContainer bool   // is this line a container?
 	isProcess   bool   // is this line a process?
 	isActive    bool   // is this line selected?
+	isRunning   bool   // is the container running
 }
 
 type Pot struct {
@@ -241,9 +243,15 @@ func (pot *Pot) PrintActive(l PrintedLine, lc int, i int) {
 			pot.win.Println(l.line)
 			pot.win.ColorOff(COLOR_SELECTION)
 		} else if l.isContainer {
-			pot.win.ColorOn(COLOR_CONTAINER)
-			pot.win.Println(l.line)
-			pot.win.ColorOff(COLOR_CONTAINER)
+			if l.isRunning {
+				pot.win.ColorOn(COLOR_RUNNING)
+				pot.win.Println(l.line)
+				pot.win.ColorOff(COLOR_RUNNING)
+			} else {
+				pot.win.ColorOn(COLOR_CONTAINER)
+				pot.win.Println(l.line)
+				pot.win.ColorOff(COLOR_CONTAINER)
+			}
 		} else {
 			pot.win.Println(l.line)
 		}
@@ -331,15 +339,19 @@ func (pot *Pot) UpdatePot(lc int, wc int) {
 	sort.Sort(SortableContainers{pot.snapshot, pot.sort, pot.reverse})
 
 	for _, cnt := range pot.snapshot {
-		ss = append(ss, PrintedLine{
-			cnt.container.Format(wc),
-			true,
-			false,
-			cnt.isSelected,
-		})
+		p := PrintedLine{
+			line:        cnt.container.Format(wc),
+			isContainer: true,
+			isProcess:   false,
+			isActive:    cnt.isSelected,
+		}
+		if len(cnt.container.Status) > 2 && cnt.container.Status[0:2] == "Up" {
+			p.isRunning = true
+		}
+		ss = append(ss, p)
 		if pot.showGlobalProcesses || cnt.showProcesses {
 			for _, proc := range cnt.processes {
-				ss = append(ss, PrintedLine{proc.Format(wc), false, true, false})
+				ss = append(ss, PrintedLine{proc.Format(wc), false, true, false, false})
 			}
 		}
 	}
@@ -512,6 +524,7 @@ func (pot *Pot) Run() {
 	gnc.InitPair(COLOR_CONTAINER, gnc.C_CYAN, gnc.C_BLACK)
 	gnc.InitPair(COLOR_SELECTION, gnc.C_BLACK, gnc.C_YELLOW)
 	gnc.InitPair(COLOR_HELP, gnc.C_YELLOW, gnc.C_BLACK)
+	gnc.InitPair(COLOR_RUNNING, gnc.C_GREEN, gnc.C_BLACK)
 	pot.win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
@@ -681,7 +694,7 @@ func NewPot(c *DockerCli) *Pot {
 		winInfo:             nil,
 		showGlobalProcesses: false, // show processes
 		reverse:             false, // non-reversed sort
-		sort:                SORT_STATUS,
+		sort:                SORT_CPU,
 	}
 }
 
