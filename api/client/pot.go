@@ -20,14 +20,15 @@ import (
 const (
 	NB_COLUMNS = 8
 
-	Y_HELP = 40
-	X_HELP = 20
+	X_HELP = 60
+	Y_HELP = 10
 )
 
 const (
 	COLOR_CONTAINER = 2
 	COLOR_SELECTION = 3
 	COLOR_HELP = 4
+	COLOR_HIGHLIGHT = 5
 )
 
 type Status int // What we are doing
@@ -126,10 +127,10 @@ type Pot struct {
 	status              Status      // Current status
 	snapshot            []Container // Current containers/processes state
 	win                 *gnc.Window // goncurse Window
-	winInfo             *gnc.Window // goncurse info Window
 	showGlobalProcesses bool        // whether or not to show processes
 	reverse             bool        // Reverse sort
 	sort                Sort        // Current sort
+	currentInfo         Container
 }
 
 var (
@@ -359,7 +360,11 @@ func (pot *Pot) UpdatePot(lc int, wc int) {
 
 func (pot *Pot) colorColumn(s string, sort Sort) {
 	if pot.sort == sort {
+		pot.win.AttrOn(gnc.A_REVERSE)
+		pot.win.ColorOn(COLOR_HIGHLIGHT)
 		pot.win.Printf("%s", s)
+		pot.win.ColorOff(COLOR_HIGHLIGHT)
+		pot.win.AttrOff(gnc.A_REVERSE)
 		return
 	}
 	pot.win.AttrOn(gnc.A_REVERSE)
@@ -387,18 +392,33 @@ func (pot *Pot) PrintPot(wc int, lc int) {
 	pot.UpdatePot(lc, wc)
 }
 
-func (pot *Pot) PrintInfo() {
-	pot.winInfo.Printf("plop")
+func (pot *Pot) PrintInfo(wc int) {
+	var info = Page{
+		Header: "\nInformation about container:\n",
+		Info: "",
+		Body: []ItemPair{},
+		Footer: "\nPress 'i' to return.",
+	}
+
+	info.Body = append(info.Body, ItemPair{"Name", pot.currentInfo.container.Name})
+	info.Body = append(info.Body, ItemPair{"Id", pot.currentInfo.container.Id})
+	info.Body = append(info.Body, ItemPair{"Command", pot.currentInfo.container.Command})
+	info.Body = append(info.Body, ItemPair{"Uptime", pot.currentInfo.container.Uptime})
+	info.Body = append(info.Body, ItemPair{"Status", pot.currentInfo.container.Status})
+	info.Body = append(info.Body, ItemPair{"%CPU", pot.currentInfo.container.CPU})
+	info.Body = append(info.Body, ItemPair{"%RAM", pot.currentInfo.container.RAM})
+
+	pot.PrintPage(info, wc)
 }
 
-func (pot *Pot) PrintHelp(wc int) {
+func (pot *Pot) PrintPage(p Page, wc int) {
 	pot.win.ColorOn(COLOR_SELECTION)
-	pot.win.Printf("%s\n", help.Header)
+	pot.win.Printf("%s\n", p.Header)
 	pot.win.ColorOff(COLOR_SELECTION)
 
-	pot.win.Printf("%s", help.Info)
+	pot.win.Printf("%s", p.Info)
 
-	for _, v := range help.Commands {
+	for _, v := range p.Body {
 		pot.win.ColorOn(COLOR_HELP)
 		pot.win.Printf("%s", PrettyColumn(v.Com+":", 20, " ", " "))
 		pot.win.ColorOff(COLOR_HELP)
@@ -407,8 +427,12 @@ func (pot *Pot) PrintHelp(wc int) {
 	}
 
 	pot.win.ColorOn(COLOR_CONTAINER)
-	pot.win.Printf("%s\n", help.Footer)
+	pot.win.Printf("%s\n", p.Footer)
 	pot.win.ColorOff(COLOR_CONTAINER)
+}
+
+func (pot *Pot) PrintHelp(wc int) {
+	pot.PrintPage(help, wc)
 }
 
 func (pot *Pot) GetContainerByPos(line_num int) int {
@@ -510,6 +534,7 @@ func (pot *Pot) Run() {
 	gnc.InitPair(COLOR_CONTAINER, gnc.C_CYAN, gnc.C_BLACK)
 	gnc.InitPair(COLOR_SELECTION, gnc.C_BLACK, gnc.C_YELLOW)
 	gnc.InitPair(COLOR_HELP, gnc.C_YELLOW, gnc.C_BLACK)
+	gnc.InitPair(COLOR_HIGHLIGHT, gnc.C_MAGENTA, gnc.C_BLACK)
 	pot.win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
@@ -546,12 +571,8 @@ func (pot *Pot) Run() {
 			pot.PrintHelp(wc)
 			pot.win.Refresh()
 		case STATUS_INFO:
-			pot.winInfo, _ = gnc.NewWindow(Y_HELP, X_HELP, my/2-Y_HELP/2, mx/2-X_HELP/2)
-			pot.PrintPot(wc, lc)
-			pot.PrintInfo()
-			pot.winInfo.Border('|', '|', '-', '-', '+', '+', '+', '+')
+			pot.PrintInfo(wc)
 			pot.win.Refresh()
-			pot.winInfo.Refresh()
 		}
 
 		// Handle Events
@@ -612,7 +633,11 @@ func (pot *Pot) Run() {
 					}
 				}
 				if kk == 'i' {
-					pot.status = STATUS_INFO
+					c := pot.GetContainerByPos(active)
+					if c != -1 {
+						pot.currentInfo = pot.snapshot[c]
+						pot.status = STATUS_INFO
+					}
 				}
 				if kk == 'p' {
 					for _, c := range pot.getSelectedContainers() {
@@ -676,32 +701,31 @@ func NewPot(c *DockerCli) *Pot {
 		status:              STATUS_POT,
 		snapshot:            []Container{},
 		win:                 nil,
-		winInfo:             nil,
 		showGlobalProcesses: false, // show processes
 		reverse:             false, // non-reversed sort
 		sort:                SORT_STATUS,
 	}
 }
 
-type HelpPair struct {
+type ItemPair struct {
 	Com string
 	Def string
 }
 
-type Help struct {
+type Page struct {
 	Header   string
 	Info     string
-	Commands []HelpPair
+	Body     []ItemPair
 	Footer   string
 }
 
-var help = Help{
+var help = Page{
 	Header: `
 Help of "pot" command:
 `,
 	Info: `
 `,
-	Commands: []HelpPair{
+	Body: []ItemPair{
 		{"<arrow up>", "scroll up"},
 		{"<arrow down>", "scroll down"},
 		{"<space>", "select/unselect container"},
