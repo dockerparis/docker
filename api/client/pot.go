@@ -17,6 +17,7 @@ import (
 )
 
 const NB_COLUMNS = 8
+const COLOR_CONTAINER = 2
 
 type Pot struct {
 	c *DockerCli
@@ -83,6 +84,12 @@ func (c *ProcessLine) Format(column_width int) string {
 type Container struct {
 	container ContainerLine // information about the container
 	processes []ProcessLine // information about the processes
+}
+
+type PrintedLine struct {
+	line string // the line
+	isContainer bool // is this line a container?
+	isProcess bool // is this line a process?
 }
 
 var (
@@ -154,25 +161,31 @@ func (pot *Pot) Snapshot() []Container {
 	return res
 }
 
-func printActive(win *gnc.Window, s string, lc int, i int) {
+func printActive(win *gnc.Window, l PrintedLine, lc int, i int) {
 	if i < scroll || i >= scroll+lc {
 		return
 	}
 	if active == i {
 		win.AttrOn(gnc.A_REVERSE)
-		win.Println(s)
+		win.Println(l.line)
 		win.AttrOff(gnc.A_REVERSE)
 	} else {
-		win.Println(s)
+		if l.isContainer {
+			win.ColorOn(COLOR_CONTAINER)
+			win.Println(l.line)
+			win.ColorOff(COLOR_CONTAINER)
+		} else {
+			win.Println(l.line)
+		}
 	}
 }
 
 func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
-	ss := make([]string, 0, 10)
+	ss := make([]PrintedLine, 0, 42)
 	for _, cnt := range cnts {
-		ss = append(ss, cnt.container.Format(wc))
+		ss = append(ss, PrintedLine{cnt.container.Format(wc), true, false})
 		for _, proc := range cnt.processes {
-			ss = append(ss, proc.Format(wc))
+			ss = append(ss, PrintedLine{proc.Format(wc), false, true})
 		}
 	}
 	if active < 0 {
@@ -193,6 +206,10 @@ func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
 
 func (pot *Pot) Run() {
 	win, err := gnc.Init()
+
+	gnc.StartColor()
+	gnc.InitPair(COLOR_CONTAINER, gnc.C_BLACK, gnc.C_CYAN)
+	
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
