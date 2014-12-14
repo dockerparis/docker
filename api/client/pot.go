@@ -130,9 +130,9 @@ func printActive(win *gnc.Window, s string, lc int, i int) {
 	}
 }
 
-func (pot *Pot) Update(win *gnc.Window, lc int, wc int) {
+func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
 	ss := make([]string, 0, 10)
-	for _, cnt := range pot.Snapshot() {
+	for _, cnt := range cnts {
 		ss = append(ss, cnt.container.Format(wc))
 		for _, proc := range cnt.processes {
 			ss = append(ss, proc.String())
@@ -177,6 +177,9 @@ func (pot *Pot) Run() {
 		}
 	}(win, k)
 
+	recompute := false
+	snapshot := pot.Snapshot()
+
 	for {
 		my, mx := win.MaxYX()
 	
@@ -194,6 +197,7 @@ func (pot *Pot) Run() {
 			}
 		case <-t:
 		case <-s:
+			recompute = true
 			gnc.End()
 			win.Refresh()
 		}
@@ -217,8 +221,11 @@ func (pot *Pot) Run() {
 		if mx < 40 || my < 5 {
 			continue
 		}
-
-		pot.Update(win, lc, wc)
+		if recompute {
+			snapshot = pot.Snapshot()
+			recompute = false
+		}
+		pot.Update(win, lc, wc, snapshot)
 		win.Refresh()
 	}
 }
