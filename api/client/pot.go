@@ -320,19 +320,29 @@ func (pot *Pot) UpdatePot(lc int, wc int) {
 	}
 }
 
+func (pot *Pot) colorColumn(s string, sort Sort) {
+	if pot.sort == sort {
+		pot.win.Printf("%s", s)
+		return
+	}
+	pot.win.AttrOn(gnc.A_REVERSE)
+	pot.win.Printf("%s", s)
+	pot.win.AttrOff(gnc.A_REVERSE)
+}
+
 func (pot *Pot) PrintHeader(wc int) {
 	o, _ := exec.Command("uptime").Output()
 	pot.win.Printf("%s", o)
-	pot.win.AttrOn(gnc.A_REVERSE)
-	pot.win.Println(PrettyColumn("Name", wc, " ", " ") +
-		PrettyColumn("Image", wc, " ", " ") +
-		PrettyColumn("Id", wc, " ", " ") +
-		PrettyColumn("Command", wc, " ", " ") +
-		PrettyColumn("Uptime", wc, " ", " ") +
-		PrettyColumn("Status", wc, " ", " ") +
-		PrettyColumn("%CPU", wc, " ", " ") +
-		PrettyColumn("%RAM", wc, " ", " "))
-	pot.win.AttrOff(gnc.A_REVERSE)
+
+	pot.colorColumn(PrettyColumn("Name", wc, " ", " "), SORT_NAME)
+	pot.colorColumn(PrettyColumn("Image", wc, " ", " "), SORT_IMAGE)
+	pot.colorColumn(PrettyColumn("Id", wc, " ", " "), SORT_ID)
+	pot.colorColumn(PrettyColumn("Command", wc, " ", " "), SORT_COMMAND)
+	pot.colorColumn(PrettyColumn("Uptime", wc, " ", " "), SORT_UPTIME)
+	pot.colorColumn(PrettyColumn("Status", wc, " ", " "), SORT_STATUS)
+	pot.colorColumn(PrettyColumn("%CPU", wc, " ", " "), SORT_CPU)
+	pot.colorColumn(PrettyColumn("%RAM", wc, " ", " "), SORT_RAM)
+	pot.win.Println()
 }
 
 func (pot *Pot) PrintPot(wc int, lc int) {
