@@ -35,11 +35,14 @@ const (
 type Sort int
 
 const (
-	SORT_DEFAULT = iota
-	SORT_RAM
-	SORT_NAME
-	SORT_CPU
+	SORT_NAME = iota
+	SORT_IMAGE
+	SORT_ID
+	SORT_COMMAND
 	SORT_UPTIME
+	SORT_STATUS
+	SORT_CPU
+	SORT_RAM
 )
 
 // CommonLine contains information common to each printed line
@@ -251,16 +254,22 @@ func (a SortableContainers) Less(i, j int) bool {
 	var less bool
 
 	switch a.sort {
-	case SORT_RAM:
-		less = a.containers[i].container.RAM > a.containers[j].container.RAM
 	case SORT_NAME:
 		less = a.containers[i].container.Name < a.containers[j].container.Name
-	case SORT_CPU:
-		less = a.containers[i].container.CPU > a.containers[j].container.CPU
+	case SORT_IMAGE:
+		less = a.containers[i].container.Image < a.containers[j].container.Image
+	case SORT_ID:
+		less = a.containers[i].container.Id < a.containers[j].container.Id
+	case SORT_COMMAND:
+		less = a.containers[i].container.Command < a.containers[j].container.Command
 	case SORT_UPTIME:
 		less = a.containers[i].container.Uptime > a.containers[j].container.Uptime
+	case SORT_CPU:
+		less = a.containers[i].container.CPU > a.containers[j].container.CPU
+	case SORT_RAM:
+		less = a.containers[i].container.RAM > a.containers[j].container.RAM
 	default:
-		less = false
+		less = i < j
 	}
 
 	if a.reverse {
@@ -550,22 +559,31 @@ func (pot *Pot) Run() {
 					pot.status = STATUS_POT
 				}
 			}
-			if kk == 'A' { // (default)
-				pot.sort = SORT_DEFAULT
-			}
-			if kk == 'M' { // [M]emory
-				pot.sort = SORT_RAM
-			}
-			if kk == 'N' { // [N]ame
+			if kk == '1' {
 				pot.sort = SORT_NAME
 			}
-			if kk == 'P' { // [P]rocessor
-				pot.sort = SORT_CPU
+			if kk == '2' {
+				pot.sort = SORT_IMAGE
 			}
-			if kk == 'T' { // [T]ime
+			if kk == '3' {
+				pot.sort = SORT_ID
+			}
+			if kk == '4' {
+				pot.sort = SORT_COMMAND
+			}
+			if kk == '5' {
 				pot.sort = SORT_UPTIME
 			}
-			if kk == 'I' { // [I]nverse
+			if kk == '6' {
+				pot.sort = SORT_STATUS
+			}
+			if kk == '7' {
+				pot.sort = SORT_CPU
+			}
+			if kk == '8' {
+				pot.sort = SORT_RAM
+			}
+			if kk == 'I' {
 				pot.reverse = !pot.reverse
 			}
 		case <-t:
@@ -585,8 +603,8 @@ func NewPot(c *DockerCli) *Pot {
 		[]Container{},
 		nil,
 		false, // show processes
-		SORT_DEFAULT,
-		false, // reverse sort
+		SORT_STATUS,
+		false, // non-reversed sort
 	}
 }
 
