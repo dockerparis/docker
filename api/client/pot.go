@@ -50,7 +50,7 @@ type ContainerLine struct {
 	CommonLine        // same props as processes
 }
 
-func prettyColumn(in string, expected_len int) string {
+func PrettyColumn(in string, expected_len int) string {
 	prefix := " "
 	suffix := " |"
 
@@ -67,28 +67,28 @@ func prettyColumn(in string, expected_len int) string {
 }
 
 func (c *ContainerLine) Format(column_width int) string {
-	return prettyColumn(c.Name, column_width) +
-		prettyColumn(c.Image, column_width) +
-		prettyColumn(c.Id, column_width) +
-		prettyColumn(c.Command, column_width) +
-		prettyColumn(c.Uptime, column_width) +
-		prettyColumn(c.Status, column_width) +
-		prettyColumn(c.CPU, column_width) +
-		prettyColumn(c.RAM, column_width)
+	return PrettyColumn(c.Name, column_width) +
+		PrettyColumn(c.Image, column_width) +
+		PrettyColumn(c.Id, column_width) +
+		PrettyColumn(c.Command, column_width) +
+		PrettyColumn(c.Uptime, column_width) +
+		PrettyColumn(c.Status, column_width) +
+		PrettyColumn(c.CPU, column_width) +
+		PrettyColumn(c.RAM, column_width)
 }
 
 // ProcessLine contains information about a process
 type ProcessLine ContainerLine
 
 func (c *ProcessLine) Format(column_width int) string {
-	return prettyColumn("", column_width) +
-		prettyColumn("", column_width) +
-		prettyColumn(c.Id, column_width) +
-		prettyColumn(c.Command, column_width) +
-		prettyColumn(c.Uptime, column_width) +
-		prettyColumn(c.Status, column_width) +
-		prettyColumn(c.CPU, column_width) +
-		prettyColumn(c.RAM, column_width)
+	return PrettyColumn("", column_width) +
+		PrettyColumn("", column_width) +
+		PrettyColumn(c.Id, column_width) +
+		PrettyColumn(c.Command, column_width) +
+		PrettyColumn(c.Uptime, column_width) +
+		PrettyColumn(c.Status, column_width) +
+		PrettyColumn(c.CPU, column_width) +
+		PrettyColumn(c.RAM, column_width)
 }
 
 type Container struct {
@@ -171,7 +171,7 @@ func (pot *Pot) Snapshot() []Container {
 	return res
 }
 
-func printActive(win *gnc.Window, l PrintedLine, lc int, i int) {
+func (pot *Pot) PrintActive(win *gnc.Window, l PrintedLine, lc int, i int) {
 	if i < scroll || i >= scroll+lc {
 		return
 	}
@@ -210,7 +210,7 @@ func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
 		scroll = active
 	}
 	for i, s := range ss {
-		printActive(win, s, lc, i)
+		pot.PrintActive(win, s, lc, i)
 	}
 }
 
@@ -272,14 +272,14 @@ func (pot *Pot) Run() {
 
 		win.AttrOn(gnc.A_REVERSE)
 
-		win.Println(prettyColumn("Name", wc) +
-			prettyColumn("Image", wc) +
-			prettyColumn("Id", wc) +
-			prettyColumn("Command", wc) +
-			prettyColumn("Uptime", wc) +
-			prettyColumn("Status", wc) +
-			prettyColumn("CPU", wc) +
-			prettyColumn("RAM", wc))
+		win.Println(PrettyColumn("Name", wc) +
+			PrettyColumn("Image", wc) +
+			PrettyColumn("Id", wc) +
+			PrettyColumn("Command", wc) +
+			PrettyColumn("Uptime", wc) +
+			PrettyColumn("Status", wc) +
+			PrettyColumn("CPU", wc) +
+			PrettyColumn("RAM", wc))
 		
 		win.AttrOff(gnc.A_REVERSE)
 		
@@ -296,5 +296,5 @@ func (pot *Pot) Run() {
 }
 
 func NewPot(c *DockerCli) *Pot {
-	return &Pot{c}
+	return &Pot{c, STATUS_POT}
 }
