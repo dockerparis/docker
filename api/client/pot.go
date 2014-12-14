@@ -356,6 +356,13 @@ func (pot *Pot) StartContainer(c *Container) {
 	}(id)
 }
 
+func (pot *Pot) RmContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		exec.Command("docker", "rm", id).Run()
+	}(id)
+}
+
 func (pot *Pot) Run() {
 	var err error
 
@@ -445,6 +452,11 @@ func (pot *Pot) Run() {
 				if kk == 'S' {
 					for _, c := range pot.clearAndGetSelectedContainers() {
 						pot.StopContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'r' {
+					for _, c := range pot.clearAndGetSelectedContainers() {
+						pot.RmContainer(&pot.snapshot[c])
 					}
 				}
 			case STATUS_HELP:
