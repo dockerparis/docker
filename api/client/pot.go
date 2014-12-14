@@ -20,7 +20,7 @@ import (
 const (
 	NB_COLUMNS = 8
 
-	Y_HELP = 20
+	Y_HELP = 30
 	X_HELP = 40
 
 	HEADER_SIZE = 2
@@ -29,6 +29,7 @@ const (
 const (
 	COLOR_CONTAINER = 2
 	COLOR_SELECTION = 3
+	COLOR_HELP      = 4
 )
 
 type Status int // What we are doing
@@ -393,23 +394,23 @@ func (pot *Pot) PrintInfo() {
 }
 
 func (pot *Pot) PrintHelp(wc int) {
-	pot.win.ColorOn(3)
+	pot.win.ColorOn(COLOR_SELECTION)
 	pot.win.Printf("%s\n", help.Header)
-	pot.win.ColorOff(3)
+	pot.win.ColorOff(COLOR_SELECTION)
 
 	pot.win.Printf("%s", help.Info)
 
 	for _, v := range help.Commands {
-		pot.win.ColorOn(3)
+		pot.win.ColorOn(COLOR_HELP)
 		pot.win.Printf("%s", PrettyColumn(v.Com+":", 20, " ", " "))
-		pot.win.ColorOff(3)
+		pot.win.ColorOff(COLOR_HELP)
 		pot.win.Printf("%s", PrettyColumn(v.Def, 40, " ", " "))
 		pot.win.Println()
 	}
 
-	pot.win.ColorOn(5)
+	pot.win.ColorOn(COLOR_CONTAINER)
 	pot.win.Printf("%s\n", help.Footer)
-	pot.win.ColorOff(5)
+	pot.win.ColorOff(COLOR_CONTAINER)
 }
 
 func (pot *Pot) GetContainerByPos(line_num int) int {
@@ -510,6 +511,7 @@ func (pot *Pot) Run() {
 	gnc.StartColor()
 	gnc.InitPair(COLOR_CONTAINER, gnc.C_CYAN, gnc.C_BLACK)
 	gnc.InitPair(COLOR_SELECTION, gnc.C_BLACK, gnc.C_YELLOW)
+	gnc.InitPair(COLOR_HELP, gnc.C_YELLOW, gnc.C_BLACK)
 	pot.win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
@@ -702,11 +704,30 @@ Help of "pot" command:
 	Info: `
 `,
 	Commands: []HelpPair{
-		{"Arrow Down/Up", "Scroll containers/processes list"},
-		{"Space", "Container's selection"},
-		{"q", "Quit"},
-		{"h", "Prints this help"},
-		{"a", "Toogle container (show processes)"},
+		{"<arrow up>", "scroll up"},
+		{"<arrow down>", "scroll down"},
+		{"<space>", "select/unselect container"},
+		{"u", "unselect all containers"},
+		{"q", "quit"},
+		{"h", "prints this help"},
+		{"a", "show/hide processes on selected containers"},
+		{"A", "show/hide processes on all containers"},
+		{"k", "kill selected containers"},
+		{"s", "start selected containers"},
+		{"S", "stop selected containers"},
+		{"r", "remove selected containers"},
+		{"i", "view information about current container"},
+		{"p", "pause selected containers"},
+		{"P", "unpause selected containers"},
+		{"1", "sort by name"},
+		{"2", "sort by image"},
+		{"3", "sort by id"},
+		{"4", "sort by command"},
+		{"5", "sort by uptime"},
+		{"6", "sort by status"},
+		{"7", "sort by %CPU"},
+		{"8", "sort by %RAM"},
+		{"I", "revert current sort"},
 	},
 	Footer: `
 Press 'h' to return.
