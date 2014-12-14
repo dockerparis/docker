@@ -19,12 +19,12 @@ import (
 const NB_COLUMNS = 8
 const COLOR_CONTAINER = 2
 
-type Status int			// What we are doing
+type Status int // What we are doing
 
 const (
-	STATUS_POT = iota	// Currently displaying containers
-	STATUS_HELP		// Currently displaying help
-	STATUS_CONFIRM		// Currently waiting for confirmation
+	STATUS_POT     = iota // Currently displaying containers
+	STATUS_HELP           // Currently displaying help
+	STATUS_CONFIRM        // Currently waiting for confirmation
 )
 
 // CommonLine contains information common to each printed line
@@ -46,10 +46,10 @@ type ContainerLine struct {
 
 func PrettyColumn(in string, expected_len int, prefix string, suffix string) string {
 	i := len(in) + len(prefix) + len(suffix)
-	if (i < expected_len) {
-		return prefix + in + strings.Repeat(" ", expected_len - i) + suffix
+	if i < expected_len {
+		return prefix + in + strings.Repeat(" ", expected_len-i) + suffix
 	}
-	if (i > expected_len) {
+	if i > expected_len {
 		j := expected_len - len(prefix) - len(suffix)
 		return prefix + in[0:j] + suffix
 	}
@@ -88,22 +88,22 @@ type Container struct {
 }
 
 type PrintedLine struct {
-	line string // the line
-	isContainer bool // is this line a container?
-	isProcess bool // is this line a process?
+	line        string // the line
+	isContainer bool   // is this line a container?
+	isProcess   bool   // is this line a process?
 }
 
 type Pot struct {
-	c *DockerCli		// Used to talk to the daemon
-	status Status		// Current status
-	snapshot []Container	// Current containers/processes state
-	win *gnc.Window		// goncurse Window
-	showProcesses bool	// whether or not to show processes
+	c             *DockerCli  // Used to talk to the daemon
+	status        Status      // Current status
+	snapshot      []Container // Current containers/processes state
+	win           *gnc.Window // goncurse Window
+	showProcesses bool        // whether or not to show processes
 }
 
 var (
-	active         = 0
-	scroll         = 0
+	active = 0
+	scroll = 0
 )
 
 // Returns the running processes for the current Container
@@ -132,9 +132,9 @@ func (pot *Pot) GetProcesses(cid string) []ProcessLine {
 		p.RAM = proc[3]
 		p.Command = proc[4]
 
-		res = append(res, p)		
+		res = append(res, p)
 	}
-	
+
 	return res
 }
 
@@ -166,7 +166,7 @@ func (pot *Pot) Snapshot() []Container {
 
 		total_cpu := 0.0
 		total_ram := 0.0
-		for _, p := range(c.processes) {
+		for _, p := range c.processes {
 			cpu, err := strconv.ParseFloat(p.CPU, 32)
 			if err == nil {
 				total_cpu = total_cpu + cpu
@@ -262,7 +262,7 @@ func (pot *Pot) Run() {
 		os.Exit(1)
 	}
 	defer gnc.End()
-	
+
 	gnc.StartColor()
 	gnc.InitPair(COLOR_CONTAINER, gnc.C_CYAN, gnc.C_BLACK)
 	pot.win.Keypad(true)
@@ -324,7 +324,7 @@ func (pot *Pot) Run() {
 			case STATUS_HELP:
 				if kk == 'h' {
 					pot.status = STATUS_POT
-				}				
+				}
 			}
 		case <-t:
 			pot.snapshot = pot.Snapshot()
