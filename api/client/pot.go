@@ -165,6 +165,21 @@ func (pot *Pot) Snapshot() []Container {
 
 		c.processes = pot.GetProcesses(c.container.Id)
 
+		total_cpu := 0.0
+		total_ram := 0.0
+		for _, p := range(c.processes) {
+			cpu, err := strconv.ParseFloat(p.CPU, 32)
+			if err == nil {
+				total_cpu = total_cpu + cpu
+			}
+			ram, err := strconv.ParseFloat(p.RAM, 32)
+			if err == nil {
+				total_ram = total_ram + ram
+			}
+		}
+		c.container.CPU = fmt.Sprintf("%.1f", total_cpu)
+		c.container.RAM = fmt.Sprintf("%.1f", total_ram)
+
 		res = append(res, c)
 	}
 
@@ -278,8 +293,8 @@ func (pot *Pot) Run() {
 			PrettyColumn("Command", wc) +
 			PrettyColumn("Uptime", wc) +
 			PrettyColumn("Status", wc) +
-			PrettyColumn("CPU", wc) +
-			PrettyColumn("RAM", wc))
+			PrettyColumn("%CPU", wc) +
+			PrettyColumn("%RAM", wc))
 		
 		win.AttrOff(gnc.A_REVERSE)
 		
