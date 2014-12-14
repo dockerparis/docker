@@ -22,6 +22,8 @@ const (
 
 	Y_HELP = 20
 	X_HELP = 40
+
+	HEADER_SIZE = 2
 )
 
 const (
@@ -289,7 +291,7 @@ func (a SortableContainers) Less(i, j int) bool {
 			less = a.containers[i].container.Uptime < a.containers[j].container.Uptime
 		}
 	case SORT_CPU:
-		if  a.containers[i].container.CPU == a.containers[j].container.CPU {
+		if a.containers[i].container.CPU == a.containers[j].container.CPU {
 			less = a.containers[i].container.Id < a.containers[j].container.Id
 		} else {
 			cpu_a, _ := strconv.ParseFloat(a.containers[i].container.CPU, 32)
@@ -311,7 +313,7 @@ func (a SortableContainers) Less(i, j int) bool {
 			less = a.containers[i].container.Status < a.containers[j].container.Status
 		}
 	default:
-		
+
 		less = i < j
 	}
 
@@ -529,7 +531,7 @@ func (pot *Pot) Run() {
 	for {
 		// Print screen
 		my, mx := pot.win.MaxYX()
-		lc := my - 2 // size max of y - header (2)
+		lc := my - HEADER_SIZE
 		wc := (mx - 1) / NB_COLUMNS
 		pot.win.Erase()
 		if mx < 40 || my < 5 {
