@@ -23,15 +23,9 @@ type Status int			// What we are doing
 
 const (
 	STATUS_POT = iota	// Currently displaying containers
-	STATUS_POT_ALL		// Currently displaying containers and processes
 	STATUS_HELP		// Currently displaying help
 	STATUS_CONFIRM		// Currently waiting for confirmation
 )
-
-type Pot struct {
-	c *DockerCli		// Used to talk to the daemon
-	status Status		// Current status
-}
 
 // CommonLine contains information common to each printed line
 type CommonLine struct {
@@ -100,6 +94,13 @@ type PrintedLine struct {
 	line string // the line
 	isContainer bool // is this line a container?
 	isProcess bool // is this line a process?
+}
+
+type Pot struct {
+	c *DockerCli		// Used to talk to the daemon
+	status Status		// Current status
+	snapshot []Container	// Current containers/processes state
+	win *gnc.Window		// goncurse Window
 }
 
 var (
@@ -186,28 +187,28 @@ func (pot *Pot) Snapshot() []Container {
 	return res
 }
 
-func (pot *Pot) PrintActive(win *gnc.Window, l PrintedLine, lc int, i int) {
+func (pot *Pot) PrintActive(l PrintedLine, lc int, i int) {
 	if i < scroll || i >= scroll+lc {
 		return
 	}
 	if active == i {
-		win.AttrOn(gnc.A_REVERSE)
-		win.Println(l.line)
-		win.AttrOff(gnc.A_REVERSE)
+		pot.win.AttrOn(gnc.A_REVERSE)
+		pot.win.Println(l.line)
+		pot.win.AttrOff(gnc.A_REVERSE)
 	} else {
 		if l.isContainer {
-			win.ColorOn(COLOR_CONTAINER)
-			win.Println(l.line)
-			win.ColorOff(COLOR_CONTAINER)
+			pot.win.ColorOn(COLOR_CONTAINER)
+			pot.win.Println(l.line)
+			pot.win.ColorOff(COLOR_CONTAINER)
 		} else {
-			win.Println(l.line)
+			pot.win.Println(l.line)
 		}
 	}
 }
 
-func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
+func (pot *Pot) UpdatePot(lc int, wc int) {
 	ss := make([]PrintedLine, 0, 42)
-	for _, cnt := range cnts {
+	for _, cnt := range pot.snapshot {
 		ss = append(ss, PrintedLine{cnt.container.Format(wc), true, false})
 		for _, proc := range cnt.processes {
 			ss = append(ss, PrintedLine{proc.Format(wc), false, true})
@@ -225,22 +226,46 @@ func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
 		scroll = active
 	}
 	for i, s := range ss {
-		pot.PrintActive(win, s, lc, i)
+		pot.PrintActive(s, lc, i)
 	}
 }
 
-func (pot *Pot) Run() {
-	win, err := gnc.Init()
+func (pot *Pot) PrintHeader(wc int) {
+	o, _ := exec.Command("uptime").Output()
+	pot.win.Printf("%s", o)
+	pot.win.AttrOn(gnc.A_REVERSE)
+	pot.win.Println(PrettyColumn("Name", wc) +
+		PrettyColumn("Image", wc) +
+		PrettyColumn("Id", wc) +
+		PrettyColumn("Command", wc) +
+		PrettyColumn("Uptime", wc) +
+		PrettyColumn("Status", wc) +
+		PrettyColumn("%CPU", wc) +
+		PrettyColumn("%RAM", wc))
+	pot.win.AttrOff(gnc.A_REVERSE)
+}
 
-	gnc.StartColor()
-	gnc.InitPair(COLOR_CONTAINER, gnc.C_BLACK, gnc.C_CYAN)
-	
+func (pot *Pot) PrintPot(wc int, lc int) {
+	pot.PrintHeader(wc)
+	pot.UpdatePot(lc, wc)
+}
+
+func (pot *Pot) PrintHelp() {
+}
+
+func (pot *Pot) Run() {
+	var err error
+
+	pot.win, err = gnc.Init()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	defer gnc.End()
-	win.Keypad(true)
+	
+	gnc.StartColor()
+	gnc.InitPair(COLOR_CONTAINER, gnc.C_BLACK, gnc.C_CYAN)
+	pot.win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
 
@@ -254,62 +279,59 @@ func (pot *Pot) Run() {
 		for {
 			c <- scr.GetChar()
 		}
-	}(win, k)
+	}(pot.win, k)
 
-	recompute := false
-	snapshot := pot.Snapshot()
+	pot.snapshot = pot.Snapshot()
 
 	for {
-		my, mx := win.MaxYX()
-	
+		// Print screen
+		my, mx := pot.win.MaxYX()
 		lc := my - 2 // size max of y - header (1)
 		wc := (mx - 1) / NB_COLUMNS
-		select {
-		case kk := <-k:
-			switch kk {
-			case 'q':
-				return
-			case gnc.KEY_DOWN:
-				active = active + 1
-			case gnc.KEY_UP:
-				active = active - 1
-			}
-		case <-t:
-			recompute = true
-		case <-s:
-			recompute = true
-			gnc.End()
-			win.Refresh()
-		}
-		win.Erase()
-		o, _ := exec.Command("uptime").Output()
-		win.Printf("%s", o)
-
-		win.AttrOn(gnc.A_REVERSE)
-
-		win.Println(PrettyColumn("Name", wc) +
-			PrettyColumn("Image", wc) +
-			PrettyColumn("Id", wc) +
-			PrettyColumn("Command", wc) +
-			PrettyColumn("Uptime", wc) +
-			PrettyColumn("Status", wc) +
-			PrettyColumn("%CPU", wc) +
-			PrettyColumn("%RAM", wc))
-		
-		win.AttrOff(gnc.A_REVERSE)
-		
+		pot.win.Erase()
 		if mx < 40 || my < 5 {
 			continue
 		}
-		if recompute {
-			snapshot = pot.Snapshot()
-			recompute = false
+
+		switch pot.status {
+		case STATUS_POT:
+			pot.PrintPot(wc, lc)
+		case STATUS_HELP:
+			pot.PrintHelp()
 		}
-		pot.Update(win, lc, wc, snapshot)
-		win.Refresh()
+		pot.win.Refresh()
+
+		// Handle Events
+		select {
+		case kk := <-k:
+			if kk == 'q' {
+				return
+			}
+			switch pot.status {
+			case STATUS_POT:
+				if kk == gnc.KEY_DOWN {
+					active = active + 1
+				}
+				if kk == gnc.KEY_UP {
+					active = active - 1
+				}
+				if kk == 'h' {
+					pot.status = STATUS_HELP
+				}
+			case STATUS_HELP:
+				if kk == 'h' {
+					pot.status = STATUS_POT
+				}				
+			}
+		case <-t:
+			pot.snapshot = pot.Snapshot()
+		case <-s:
+			gnc.End()
+			pot.win.Refresh()
+		}
 	}
 }
 
 func NewPot(c *DockerCli) *Pot {
-	return &Pot{c, STATUS_POT}
+	return &Pot{c, STATUS_POT, []Container{}, nil}
 }
