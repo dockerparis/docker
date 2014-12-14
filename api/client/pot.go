@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	gnc "code.google.com/p/goncurses"
@@ -272,6 +274,33 @@ func (pot *Pot) PrintPot(wc int, lc int) {
 }
 
 func (pot *Pot) PrintHelp() {
+	pot.win.ColorOn(3)
+	pot.win.Printf("%s\n", help.Header)
+	pot.win.ColorOff(3)
+
+	pot.win.Printf("%s", help.Info)
+
+	w := new(tabwriter.Writer)
+	b := new(bytes.Buffer)
+
+	w.Init(b, 0, 20, 0, '\t', tabwriter.AlignRight)
+	for _, v := range help.Commands {
+		fmt.Fprintf(w, "%s:\t%s\n", v.Com, v.Def)
+	}
+	w.Flush()
+
+	for _, v := range strings.SplitAfter(b.String(), "\n") {
+		vv := strings.SplitAfter(v, ":")
+		pot.win.ColorOn(4)
+		pot.win.Printf("%s", vv[0])
+		pot.win.ColorOff(4)
+
+		pot.win.Printf(strings.Join(vv[1:], ""))
+	}
+
+	pot.win.ColorOn(5)
+	pot.win.Printf("%s\n", help.Footer)
+	pot.win.ColorOff(5)
 }
 
 func (pot *Pot) Run() {
@@ -368,4 +397,34 @@ func NewPot(c *DockerCli) *Pot {
 		nil,
 		false, // show processes
 	}
+}
+
+type HelpPair struct {
+	Com string
+	Def string
+}
+
+type Help struct {
+	Header   string
+	Info     string
+	Commands []HelpPair
+	Footer   string
+}
+
+var help = Help{
+	Header: `
+Help of "pot" command:
+`,
+	Info: `
+`,
+	Commands: []HelpPair{
+		{"Arrow Down/Up", "Scroll containers/processes list"},
+		{"Space", "Container's selection"},
+		{"q", "Quit"},
+		{"h", "Prints this help"},
+		{"a", "Toogle container (show processes)"},
+	},
+	Footer: `
+Press 'h' to return.
+`,
 }
