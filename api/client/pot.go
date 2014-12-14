@@ -314,18 +314,19 @@ func (pot *Pot) GetContainerByPos(line_num int) int {
 	return -1
 }
 
-func (pot *Pot) clearAndGetSelectedContainers() []int {
+func (pot *Pot) getSelectedContainers() []int {
 	res := make([]int, 0, 5)
 	for i, c := range pot.snapshot {
 		if c.isSelected {
 			res = append(res, i)
-			pot.snapshot[i].isSelected = false
 		}
 	}
-	c := pot.GetContainerByPos(active)
-	if c != -1 {
-		if !pot.snapshot[c].isSelected {
-			res = append(res, c)
+	if len(res) == 0 {
+		c := pot.GetContainerByPos(active)
+		if c != -1 {
+			if !pot.snapshot[c].isSelected {
+				res = append(res, c)
+			}
 		}
 	}
 	return res
@@ -421,9 +422,13 @@ func (pot *Pot) Run() {
 				if kk == 'A' {
 					pot.showGlobalProcesses = !pot.showGlobalProcesses
 				}
+				if kk == 'u'{
+					for i, _ := range pot.snapshot {
+						pot.snapshot[i].isSelected = false
+					}
+				}
 				if kk == 'a' {
-					c := pot.GetContainerByPos(active)
-					if c != -1 {
+					for _, c := range pot.getSelectedContainers() {
 						pot.snapshot[c].showProcesses = !pot.snapshot[c].showProcesses
 					}
 				}
@@ -432,19 +437,20 @@ func (pot *Pot) Run() {
 					if c != -1 {
 						pot.snapshot[c].isSelected = !pot.snapshot[c].isSelected
 					}
+					active = active + 1
 				}
 				if kk == 's' {
-					for _, c := range pot.clearAndGetSelectedContainers() {
+					for _, c := range pot.getSelectedContainers() {
 						pot.StartContainer(&pot.snapshot[c])
 					}
 				}
 				if kk == 'S' {
-					for _, c := range pot.clearAndGetSelectedContainers() {
+					for _, c := range pot.getSelectedContainers() {
 						pot.StopContainer(&pot.snapshot[c])
 					}
 				}
 				if kk == 'r' {
-					for _, c := range pot.clearAndGetSelectedContainers() {
+					for _, c := range pot.getSelectedContainers() {
 						pot.RmContainer(&pot.snapshot[c])
 					}
 				}
