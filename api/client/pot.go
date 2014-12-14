@@ -16,6 +16,8 @@ import (
 	"github.com/docker/docker/pkg/units"
 )
 
+const NB_COLUMNS = 8
+
 type Pot struct {
 	c *DockerCli
 }
@@ -37,10 +39,31 @@ type ContainerLine struct {
 	CommonLine        // same props as processes
 }
 
-func (c *ContainerLine) String() string {
-	return fmt.Sprintf(strings.Join(
-		[]string{c.Name, c.Image, c.Id, c.Command,
-			c.Uptime, c.Status, c.CPU, c.RAM}, "\t"))
+func prettyColumn(in string, expected_len int) string {
+	prefix := " "
+	suffix := " |"
+
+	i := len(in) + len(prefix) + len(suffix)
+	if (i < expected_len) {
+		return prefix + in + strings.Repeat(" ", expected_len - i) + suffix
+	}
+	if (i > expected_len) {
+		j := expected_len - len(prefix) - len(suffix)
+		return prefix + in[0:j] + suffix
+	}
+
+	return prefix + in + suffix
+}
+
+func (c *ContainerLine) Format(column_width int) string {
+	return prettyColumn(c.Name, column_width) +
+		prettyColumn(c.Image, column_width) +
+		prettyColumn(c.Id, column_width) +
+		prettyColumn(c.Command, column_width) +
+		prettyColumn(c.Uptime, column_width) +
+		prettyColumn(c.Status, column_width) +
+		prettyColumn(c.CPU, column_width) +
+		prettyColumn(c.RAM, column_width)
 }
 
 // ProcessLine contains information about a process
@@ -58,7 +81,6 @@ type Container struct {
 }
 
 var (
-	containerTitle = "Name\tImage\tId\tCommand\tUptime\tStatus\tCPU\tRAM"
 	active         = 0
 	scroll         = 0
 )
@@ -108,10 +130,10 @@ func printActive(win *gnc.Window, s string, lc int, i int) {
 	}
 }
 
-func (pot *Pot) update(win *gnc.Window, lc int) {
+func (pot *Pot) Update(win *gnc.Window, lc int, wc int) {
 	ss := make([]string, 0, 10)
 	for _, cnt := range pot.Snapshot() {
-		ss = append(ss, cnt.container.String())
+		ss = append(ss, cnt.container.Format(wc))
 		for _, proc := range cnt.processes {
 			ss = append(ss, proc.String())
 		}
@@ -156,8 +178,10 @@ func (pot *Pot) Run() {
 	}(win, k)
 
 	for {
-		my, _ := win.MaxYX()
+		my, mx := win.MaxYX()
+	
 		lc := my - 2 // size max of y - header (1)
+		wc := mx / NB_COLUMNS
 		select {
 		case kk := <-k:
 			switch kk {
@@ -178,9 +202,23 @@ func (pot *Pot) Run() {
 		win.Printf("%s", o)
 
 		win.AttrOn(gnc.A_REVERSE)
-		win.Println(containerTitle)
+
+		win.Println(prettyColumn("Name", wc) +
+			prettyColumn("Image", wc) +
+			prettyColumn("Id", wc) +
+			prettyColumn("Command", wc) +
+			prettyColumn("Uptime", wc) +
+			prettyColumn("Status", wc) +
+			prettyColumn("CPU", wc) +
+			prettyColumn("RAM", wc))
+		
 		win.AttrOff(gnc.A_REVERSE)
-		pot.update(win, lc)
+		
+		if mx < 40 || my < 5 {
+			continue
+		}
+
+		pot.Update(win, lc, wc)
 		win.Refresh()
 	}
 }
