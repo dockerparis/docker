@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -35,6 +36,19 @@ const (
 	STATUS_HELP           // Currently displaying help
 	STATUS_CONFIRM        // Currently waiting for confirmation
 	STATUS_INFO           // Currently displaying info
+)
+
+type Sort int
+
+const (
+	SORT_NAME = iota
+	SORT_IMAGE
+	SORT_ID
+	SORT_COMMAND
+	SORT_UPTIME
+	SORT_STATUS
+	SORT_CPU
+	SORT_RAM
 )
 
 // CommonLine contains information common to each printed line
@@ -113,7 +127,8 @@ type Pot struct {
 	win                 *gnc.Window // goncurse Window
 	winInfo             *gnc.Window // goncurse info Window
 	showGlobalProcesses bool        // whether or not to show processes
-	showInfo            bool        // whether or not to show processes
+	reverse             bool        // Reverse sort
+	sort                Sort        // Current sort
 }
 
 var (
@@ -232,8 +247,50 @@ func (pot *Pot) PrintActive(l PrintedLine, lc int, i int) {
 	}
 }
 
+type SortableContainers struct {
+	containers []Container
+	sort       Sort // property to sort on
+	reverse    bool // sort is reversed
+}
+
+func (a SortableContainers) Len() int { return len(a.containers) }
+func (a SortableContainers) Swap(i, j int) {
+	a.containers[i], a.containers[j] = a.containers[j], a.containers[i]
+}
+func (a SortableContainers) Less(i, j int) bool {
+	var less bool
+
+	switch a.sort {
+	case SORT_NAME:
+		less = a.containers[i].container.Name < a.containers[j].container.Name
+	case SORT_IMAGE:
+		less = a.containers[i].container.Image < a.containers[j].container.Image
+	case SORT_ID:
+		less = a.containers[i].container.Id < a.containers[j].container.Id
+	case SORT_COMMAND:
+		less = a.containers[i].container.Command < a.containers[j].container.Command
+	case SORT_UPTIME:
+		less = a.containers[i].container.Uptime > a.containers[j].container.Uptime
+	case SORT_CPU:
+		less = a.containers[i].container.CPU > a.containers[j].container.CPU
+	case SORT_RAM:
+		less = a.containers[i].container.RAM > a.containers[j].container.RAM
+	default:
+		less = i < j
+	}
+
+	if a.reverse {
+		less = !less
+	}
+
+	return less
+}
+
 func (pot *Pot) UpdatePot(lc int, wc int) {
 	ss := make([]PrintedLine, 0, 42)
+
+	sort.Sort(SortableContainers{pot.snapshot, pot.sort, pot.reverse})
+
 	for _, cnt := range pot.snapshot {
 		ss = append(ss, PrintedLine{
 			cnt.container.Format(wc),
@@ -326,18 +383,19 @@ func (pot *Pot) GetContainerByPos(line_num int) int {
 	return -1
 }
 
-func (pot *Pot) clearAndGetSelectedContainers() []int {
+func (pot *Pot) getSelectedContainers() []int {
 	res := make([]int, 0, 5)
 	for i, c := range pot.snapshot {
 		if c.isSelected {
 			res = append(res, i)
-			pot.snapshot[i].isSelected = false
 		}
 	}
-	c := pot.GetContainerByPos(active)
-	if c != -1 {
-		if !pot.snapshot[c].isSelected {
-			res = append(res, c)
+	if len(res) == 0 {
+		c := pot.GetContainerByPos(active)
+		if c != -1 {
+			if !pot.snapshot[c].isSelected {
+				res = append(res, c)
+			}
 		}
 	}
 	return res
@@ -346,6 +404,7 @@ func (pot *Pot) clearAndGetSelectedContainers() []int {
 func (pot *Pot) StopContainer(c *Container) {
 	id := c.container.Id
 	go func(id string) {
+		// @todo: use docker API
 		exec.Command("docker", "stop", id).Run()
 	}(id)
 }
@@ -353,6 +412,7 @@ func (pot *Pot) StopContainer(c *Container) {
 func (pot *Pot) StartContainer(c *Container) {
 	id := c.container.Id
 	go func(id string) {
+		// @todo: use docker API
 		exec.Command("docker", "start", id).Run()
 	}(id)
 }
@@ -360,7 +420,32 @@ func (pot *Pot) StartContainer(c *Container) {
 func (pot *Pot) RmContainer(c *Container) {
 	id := c.container.Id
 	go func(id string) {
+		// @todo: use docker API
 		exec.Command("docker", "rm", id).Run()
+	}(id)
+}
+
+func (pot *Pot) KillContainer(c *Container) {
+	id := c.container.Id
+	go func(id string) {
+		// @todo: use docker API
+		exec.Command("docker", "kill", id).Run()
+	}(id)
+}
+
+func (pot *Pot) PauseContainer(c *Container) {
+	id := c.container.Id
+	go func(id string) {
+		// @todo: use docker API
+		exec.Command("docker", "pause", id).Run()
+	}(id)
+}
+
+func (pot *Pot) UnpauseContainer(c *Container) {
+	id := c.container.Id
+	go func(id string) {
+		// @todo: use docker API
+		exec.Command("docker", "unpause", id).Run()
 	}(id)
 }
 
@@ -441,9 +526,18 @@ func (pot *Pot) Run() {
 				if kk == 'A' {
 					pot.showGlobalProcesses = !pot.showGlobalProcesses
 				}
+				if kk == 'k' {
+					for _, c := range pot.getSelectedContainers() {
+						pot.KillContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'u' {
+					for i, _ := range pot.snapshot {
+						pot.snapshot[i].isSelected = false
+					}
+				}
 				if kk == 'a' {
-					c := pot.GetContainerByPos(active)
-					if c != -1 {
+					for _, c := range pot.getSelectedContainers() {
 						pot.snapshot[c].showProcesses = !pot.snapshot[c].showProcesses
 					}
 				}
@@ -452,24 +546,35 @@ func (pot *Pot) Run() {
 					if c != -1 {
 						pot.snapshot[c].isSelected = !pot.snapshot[c].isSelected
 					}
+					active = active + 1
 				}
 				if kk == 's' {
-					for _, c := range pot.clearAndGetSelectedContainers() {
+					for _, c := range pot.getSelectedContainers() {
 						pot.StartContainer(&pot.snapshot[c])
 					}
 				}
 				if kk == 'S' {
-					for _, c := range pot.clearAndGetSelectedContainers() {
+					for _, c := range pot.getSelectedContainers() {
 						pot.StopContainer(&pot.snapshot[c])
 					}
 				}
 				if kk == 'r' {
-					for _, c := range pot.clearAndGetSelectedContainers() {
+					for _, c := range pot.getSelectedContainers() {
 						pot.RmContainer(&pot.snapshot[c])
 					}
 				}
 				if kk == 'i' {
 					pot.status = STATUS_INFO
+				}
+				if kk == 'p' {
+					for _, c := range pot.getSelectedContainers() {
+						pot.PauseContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'P' {
+					for _, c := range pot.getSelectedContainers() {
+						pot.UnpauseContainer(&pot.snapshot[c])
+					}
 				}
 			case STATUS_HELP:
 				if kk == 'h' {
@@ -479,6 +584,33 @@ func (pot *Pot) Run() {
 				if kk == 'i' {
 					pot.status = STATUS_POT
 				}
+			}
+			if kk == '1' {
+				pot.sort = SORT_NAME
+			}
+			if kk == '2' {
+				pot.sort = SORT_IMAGE
+			}
+			if kk == '3' {
+				pot.sort = SORT_ID
+			}
+			if kk == '4' {
+				pot.sort = SORT_COMMAND
+			}
+			if kk == '5' {
+				pot.sort = SORT_UPTIME
+			}
+			if kk == '6' {
+				pot.sort = SORT_STATUS
+			}
+			if kk == '7' {
+				pot.sort = SORT_CPU
+			}
+			if kk == '8' {
+				pot.sort = SORT_RAM
+			}
+			if kk == 'I' {
+				pot.reverse = !pot.reverse
 			}
 		case <-t:
 			pot.snapshot = pot.Snapshot()
@@ -492,13 +624,14 @@ func (pot *Pot) Run() {
 func NewPot(c *DockerCli) *Pot {
 	// default settings
 	return &Pot{
-		c,
-		STATUS_POT,
-		[]Container{},
-		nil,
-		nil,
-		false, // show processes
-		false,
+		c:                   c,
+		status:              STATUS_POT,
+		snapshot:            []Container{},
+		win:                 nil,
+		winInfo:             nil,
+		showGlobalProcesses: false, // show processes
+		reverse:             false, // non-reversed sort
+		sort:                SORT_STATUS,
 	}
 }
 
