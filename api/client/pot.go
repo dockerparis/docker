@@ -44,10 +44,7 @@ type ContainerLine struct {
 	CommonLine        // same props as processes
 }
 
-func PrettyColumn(in string, expected_len int) string {
-	prefix := " "
-	suffix := " |"
-
+func PrettyColumn(in string, expected_len int, prefix string, suffix string) string {
 	i := len(in) + len(prefix) + len(suffix)
 	if (i < expected_len) {
 		return prefix + in + strings.Repeat(" ", expected_len - i) + suffix
@@ -61,28 +58,28 @@ func PrettyColumn(in string, expected_len int) string {
 }
 
 func (c *ContainerLine) Format(column_width int) string {
-	return PrettyColumn(c.Name, column_width) +
-		PrettyColumn(c.Image, column_width) +
-		PrettyColumn(c.Id, column_width) +
-		PrettyColumn(c.Command, column_width) +
-		PrettyColumn(c.Uptime, column_width) +
-		PrettyColumn(c.Status, column_width) +
-		PrettyColumn(c.CPU, column_width) +
-		PrettyColumn(c.RAM, column_width)
+	return PrettyColumn(c.Name, column_width, " ", " ") +
+		PrettyColumn(c.Image, column_width, " ", " ") +
+		PrettyColumn(c.Id, column_width, " ", " ") +
+		PrettyColumn(c.Command, column_width, " ", " ") +
+		PrettyColumn(c.Uptime, column_width, " ", " ") +
+		PrettyColumn(c.Status, column_width, " ", " ") +
+		PrettyColumn(c.CPU, column_width, " ", " ") +
+		PrettyColumn(c.RAM, column_width, " ", " ")
 }
 
 // ProcessLine contains information about a process
 type ProcessLine ContainerLine
 
 func (c *ProcessLine) Format(column_width int) string {
-	return PrettyColumn("", column_width) +
-		PrettyColumn("", column_width) +
-		PrettyColumn(c.Id, column_width) +
-		PrettyColumn(c.Command, column_width) +
-		PrettyColumn(c.Uptime, column_width) +
-		PrettyColumn(c.Status, column_width) +
-		PrettyColumn(c.CPU, column_width) +
-		PrettyColumn(c.RAM, column_width)
+	return PrettyColumn("", column_width, " ", " ") +
+		PrettyColumn("", column_width, " ", " ") +
+		PrettyColumn(c.Id, column_width, " |- ", " ") +
+		PrettyColumn(c.Command, column_width, " ", " ") +
+		PrettyColumn(c.Uptime, column_width, " ", " ") +
+		PrettyColumn(c.Status, column_width, " ", " ") +
+		PrettyColumn(c.CPU, column_width, " ", " ") +
+		PrettyColumn(c.RAM, column_width, " ", " ")
 }
 
 type Container struct {
@@ -237,14 +234,14 @@ func (pot *Pot) PrintHeader(wc int) {
 	o, _ := exec.Command("uptime").Output()
 	pot.win.Printf("%s", o)
 	pot.win.AttrOn(gnc.A_REVERSE)
-	pot.win.Println(PrettyColumn("Name", wc) +
-		PrettyColumn("Image", wc) +
-		PrettyColumn("Id", wc) +
-		PrettyColumn("Command", wc) +
-		PrettyColumn("Uptime", wc) +
-		PrettyColumn("Status", wc) +
-		PrettyColumn("%CPU", wc) +
-		PrettyColumn("%RAM", wc))
+	pot.win.Println(PrettyColumn("Name", wc, " ", " ") +
+		PrettyColumn("Image", wc, " ", " ") +
+		PrettyColumn("Id", wc, " ", " ") +
+		PrettyColumn("Command", wc, " ", " ") +
+		PrettyColumn("Uptime", wc, " ", " ") +
+		PrettyColumn("Status", wc, " ", " ") +
+		PrettyColumn("%CPU", wc, " ", " ") +
+		PrettyColumn("%RAM", wc, " ", " "))
 	pot.win.AttrOff(gnc.A_REVERSE)
 }
 
@@ -267,7 +264,7 @@ func (pot *Pot) Run() {
 	defer gnc.End()
 	
 	gnc.StartColor()
-	gnc.InitPair(COLOR_CONTAINER, gnc.C_BLACK, gnc.C_CYAN)
+	gnc.InitPair(COLOR_CONTAINER, gnc.C_CYAN, gnc.C_BLACK)
 	pot.win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
