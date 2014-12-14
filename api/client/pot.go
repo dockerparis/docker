@@ -19,8 +19,18 @@ import (
 const NB_COLUMNS = 8
 const COLOR_CONTAINER = 2
 
+type Status int			// What we are doing
+
+const (
+	STATUS_POT = iota	// Currently displaying containers
+	STATUS_POT_ALL		// Currently displaying containers and processes
+	STATUS_HELP		// Currently displaying help
+	STATUS_CONFIRM		// Currently waiting for confirmation
+)
+
 type Pot struct {
-	c *DockerCli
+	c *DockerCli		// Used to talk to the daemon
+	status Status		// Current status
 }
 
 // CommonLine contains information common to each printed line
