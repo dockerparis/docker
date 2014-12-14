@@ -19,6 +19,7 @@ import (
 
 const (
 	NB_COLUMNS = 8
+	HEADER_SIZE = 2
 )
 
 const (
