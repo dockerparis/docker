@@ -181,7 +181,7 @@ func (pot *Pot) Run() {
 		my, mx := win.MaxYX()
 	
 		lc := my - 2 // size max of y - header (1)
-		wc := mx / NB_COLUMNS
+		wc := (mx - 1) / NB_COLUMNS
 		select {
 		case kk := <-k:
 			switch kk {
