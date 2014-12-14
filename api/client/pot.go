@@ -91,6 +91,7 @@ type Container struct {
 	container  ContainerLine // information about the container
 	processes  []ProcessLine // information about the processes
 	isSelected bool          // container selection
+	showProcesses bool	 // whether or not to show processes
 }
 
 type PrintedLine struct {
@@ -105,7 +106,7 @@ type Pot struct {
 	status        Status      // Current status
 	snapshot      []Container // Current containers/processes state
 	win           *gnc.Window // goncurse Window
-	showProcesses bool        // whether or not to show processes
+	showGlobalProcesses bool        // whether or not to show processes
 }
 
 var (
@@ -162,9 +163,10 @@ func (pot *Pot) Snapshot() []Container {
 	for _, out := range outs.Data {
 		var c Container
 
+		c.showProcesses = false
 		c.container.Id = out.Get("Id")
 		c.container.Command = strconv.Quote(out.Get("Command"))
-		c.container.Image = "Soon"
+		c.container.Image = out.Get("Image")
 		c.container.Name = out.GetList("Names")[0]
 		c.container.Uptime = units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0)))
 		c.container.Status = out.Get("Status")
@@ -189,6 +191,7 @@ func (pot *Pot) Snapshot() []Container {
 		for _, cn := range pot.snapshot {
 			if cn.container.Id == c.container.Id {
 				c.isSelected = cn.isSelected
+				c.showProcesses = cn.showProcesses
 				break
 			}
 		}
@@ -231,7 +234,7 @@ func (pot *Pot) UpdatePot(lc int, wc int) {
 			false,
 			cnt.isSelected,
 		})
-		if pot.showProcesses {
+		if pot.showGlobalProcesses || cnt.showProcesses {
 			for _, proc := range cnt.processes {
 				ss = append(ss, PrintedLine{proc.Format(wc), false, true, false})
 			}
@@ -303,6 +306,25 @@ func (pot *Pot) PrintHelp() {
 	pot.win.ColorOff(5)
 }
 
+func (pot *Pot) GetContainerByPos(line_num int) int {
+	i := 0
+
+	for res, cnt := range pot.snapshot {
+		if i == line_num {
+			return res
+		}
+		if i > line_num {
+			break
+		}
+		if pot.showGlobalProcesses || cnt.showProcesses {
+			i += len(cnt.processes)
+		}
+		i++
+	}
+	
+	return -1
+}
+
 func (pot *Pot) Run() {
 	var err error
 
@@ -315,6 +337,7 @@ func (pot *Pot) Run() {
 
 	gnc.StartColor()
 	gnc.InitPair(COLOR_CONTAINER, gnc.C_CYAN, gnc.C_BLACK)
+	gnc.InitPair(COLOR_SELECTION, gnc.C_BLACK, gnc.C_YELLOW)
 	pot.win.Keypad(true)
 	gnc.Echo(false)
 	gnc.Cursor(0)
@@ -368,11 +391,20 @@ func (pot *Pot) Run() {
 				if kk == 'h' {
 					pot.status = STATUS_HELP
 				}
+				if kk == 'A' {
+					pot.showGlobalProcesses = !pot.showGlobalProcesses
+				}
 				if kk == 'a' {
-					pot.showProcesses = !pot.showProcesses
+					c := pot.GetContainerByPos(active)
+					if c != -1 {
+						pot.snapshot[c].showProcesses = !pot.snapshot[c].showProcesses
+					}
 				}
 				if kk == ' ' {
-					pot.snapshot[active].isSelected = !pot.snapshot[active].isSelected
+					c := pot.GetContainerByPos(active)
+					if c != -1 {
+						pot.snapshot[c].isSelected = !pot.snapshot[c].isSelected
+					}
 				}
 			case STATUS_HELP:
 				if kk == 'h' {
