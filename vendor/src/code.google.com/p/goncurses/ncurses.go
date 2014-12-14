@@ -5,7 +5,7 @@
 
 package goncurses
 
-// #cgo LDFLAGS: -lncurses
+// #cgo LDFLAGS: -lncurses -ltinfo
 // #cgo windows CFLAGS: -DNCURSES_MOUSE_VERSION
 // #cgo windows LDFLAGS: -lpdcurses
 // #include <curses.h>

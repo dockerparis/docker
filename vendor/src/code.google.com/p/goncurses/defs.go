@@ -4,7 +4,7 @@
 
 package goncurses
 
-// #cgo LDFLAGS: -lncurses
+// #cgo LDFLAGS: -lncurses -ltinfo
 // #include <curses.h>
 import "C"
 

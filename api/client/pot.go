@@ -164,7 +164,7 @@ func (pot *Pot) Snapshot() []Container {
 		c.showProcesses = false
 		c.container.Id = out.Get("Id")
 		c.container.Command = strconv.Quote(out.Get("Command"))
-		c.container.Image = "Soon"
+		c.container.Image = out.Get("Image")
 		c.container.Name = out.GetList("Names")[0]
 		c.container.Uptime = units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0)))
 		c.container.Status = out.Get("Status")
