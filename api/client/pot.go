@@ -262,20 +262,56 @@ func (a SortableContainers) Less(i, j int) bool {
 
 	switch a.sort {
 	case SORT_NAME:
-		less = a.containers[i].container.Name < a.containers[j].container.Name
+		if a.containers[i].container.Name == a.containers[j].container.Name {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			less = a.containers[i].container.Name < a.containers[j].container.Name
+		}
 	case SORT_IMAGE:
-		less = a.containers[i].container.Image < a.containers[j].container.Image
+		if a.containers[i].container.Image == a.containers[j].container.Image {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			less = a.containers[i].container.Image < a.containers[j].container.Image
+		}
 	case SORT_ID:
+		// always unique
 		less = a.containers[i].container.Id < a.containers[j].container.Id
 	case SORT_COMMAND:
-		less = a.containers[i].container.Command < a.containers[j].container.Command
+		if a.containers[i].container.Command == a.containers[j].container.Command {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			less = a.containers[i].container.Command < a.containers[j].container.Command
+		}
 	case SORT_UPTIME:
-		less = a.containers[i].container.Uptime > a.containers[j].container.Uptime
+		if a.containers[i].container.Uptime == a.containers[j].container.Uptime {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			less = a.containers[i].container.Uptime < a.containers[j].container.Uptime
+		}
 	case SORT_CPU:
-		less = a.containers[i].container.CPU > a.containers[j].container.CPU
+		if  a.containers[i].container.CPU == a.containers[j].container.CPU {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			cpu_a, _ := strconv.ParseFloat(a.containers[i].container.CPU, 32)
+			cpu_b, _ := strconv.ParseFloat(a.containers[j].container.CPU, 32)
+			less = cpu_a > cpu_b
+		}
 	case SORT_RAM:
-		less = a.containers[i].container.RAM > a.containers[j].container.RAM
+		if a.containers[i].container.RAM == a.containers[j].container.RAM {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			ram_a, _ := strconv.ParseFloat(a.containers[i].container.RAM, 32)
+			ram_b, _ := strconv.ParseFloat(a.containers[j].container.RAM, 32)
+			less = ram_a > ram_b
+		}
+	case SORT_STATUS:
+		if a.containers[i].container.Status == a.containers[j].container.Status {
+			less = a.containers[i].container.Id < a.containers[j].container.Id
+		} else {
+			less = a.containers[i].container.Status < a.containers[j].container.Status
+		}
 	default:
+		
 		less = i < j
 	}
 
