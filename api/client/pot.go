@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"text/tabwriter"
 	"time"
 
 	gnc "code.google.com/p/goncurses"
@@ -19,6 +17,7 @@ import (
 )
 
 const NB_COLUMNS = 8
+
 const (
 	COLOR_CONTAINER = 2
 	COLOR_SELECTION = 3
@@ -88,10 +87,10 @@ func (c *ProcessLine) Format(column_width int) string {
 }
 
 type Container struct {
-	container  ContainerLine // information about the container
-	processes  []ProcessLine // information about the processes
-	isSelected bool          // container selection
-	showProcesses bool	 // whether or not to show processes
+	container     ContainerLine // information about the container
+	processes     []ProcessLine // information about the processes
+	isSelected    bool          // container selection
+	showProcesses bool          // whether or not to show processes
 }
 
 type PrintedLine struct {
@@ -102,10 +101,10 @@ type PrintedLine struct {
 }
 
 type Pot struct {
-	c             *DockerCli  // Used to talk to the daemon
-	status        Status      // Current status
-	snapshot      []Container // Current containers/processes state
-	win           *gnc.Window // goncurse Window
+	c                   *DockerCli  // Used to talk to the daemon
+	status              Status      // Current status
+	snapshot            []Container // Current containers/processes state
+	win                 *gnc.Window // goncurse Window
 	showGlobalProcesses bool        // whether or not to show processes
 }
 
@@ -276,29 +275,19 @@ func (pot *Pot) PrintPot(wc int, lc int) {
 	pot.UpdatePot(lc, wc)
 }
 
-func (pot *Pot) PrintHelp() {
+func (pot *Pot) PrintHelp(wc int) {
 	pot.win.ColorOn(3)
 	pot.win.Printf("%s\n", help.Header)
 	pot.win.ColorOff(3)
 
 	pot.win.Printf("%s", help.Info)
 
-	w := new(tabwriter.Writer)
-	b := new(bytes.Buffer)
-
-	w.Init(b, 0, 20, 0, '\t', tabwriter.AlignRight)
 	for _, v := range help.Commands {
-		fmt.Fprintf(w, "%s:\t%s\n", v.Com, v.Def)
-	}
-	w.Flush()
-
-	for _, v := range strings.SplitAfter(b.String(), "\n") {
-		vv := strings.SplitAfter(v, ":")
-		pot.win.ColorOn(4)
-		pot.win.Printf("%s", vv[0])
-		pot.win.ColorOff(4)
-
-		pot.win.Printf(strings.Join(vv[1:], ""))
+		pot.win.ColorOn(3)
+		pot.win.Printf("%s", PrettyColumn(v.Com+":", 20, " ", " "))
+		pot.win.ColorOff(3)
+		pot.win.Printf("%s", PrettyColumn(v.Def, 40, " ", " "))
+		pot.win.Println()
 	}
 
 	pot.win.ColorOn(5)
@@ -321,7 +310,7 @@ func (pot *Pot) GetContainerByPos(line_num int) int {
 		}
 		i++
 	}
-	
+
 	return -1
 }
 
@@ -370,7 +359,7 @@ func (pot *Pot) Run() {
 		case STATUS_POT:
 			pot.PrintPot(wc, lc)
 		case STATUS_HELP:
-			pot.PrintHelp()
+			pot.PrintHelp(wc)
 		}
 		pot.win.Refresh()
 
