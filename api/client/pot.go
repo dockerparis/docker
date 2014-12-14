@@ -16,7 +16,12 @@ import (
 	"github.com/docker/docker/pkg/units"
 )
 
-const NB_COLUMNS = 8
+const (
+	NB_COLUMNS = 8
+
+	Y_HELP = 20
+	X_HELP = 40
+)
 
 const (
 	COLOR_CONTAINER = 2
@@ -29,6 +34,7 @@ const (
 	STATUS_POT     = iota // Currently displaying containers
 	STATUS_HELP           // Currently displaying help
 	STATUS_CONFIRM        // Currently waiting for confirmation
+	STATUS_INFO           // Currently displaying info
 )
 
 // CommonLine contains information common to each printed line
@@ -105,7 +111,9 @@ type Pot struct {
 	status              Status      // Current status
 	snapshot            []Container // Current containers/processes state
 	win                 *gnc.Window // goncurse Window
+	winInfo             *gnc.Window // goncurse info Window
 	showGlobalProcesses bool        // whether or not to show processes
+	showInfo            bool        // whether or not to show processes
 }
 
 var (
@@ -275,6 +283,10 @@ func (pot *Pot) PrintPot(wc int, lc int) {
 	pot.UpdatePot(lc, wc)
 }
 
+func (pot *Pot) PrintInfo() {
+	pot.winInfo.Printf("plop")
+}
+
 func (pot *Pot) PrintHelp(wc int) {
 	pot.win.ColorOn(3)
 	pot.win.Printf("%s\n", help.Header)
@@ -333,21 +345,21 @@ func (pot *Pot) clearAndGetSelectedContainers() []int {
 
 func (pot *Pot) StopContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		exec.Command("docker", "stop", id).Run()
 	}(id)
 }
 
 func (pot *Pot) StartContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		exec.Command("docker", "start", id).Run()
 	}(id)
 }
 
 func (pot *Pot) RmContainer(c *Container) {
 	id := c.container.Id
-	go func (id string) {
+	go func(id string) {
 		exec.Command("docker", "rm", id).Run()
 	}(id)
 }
@@ -396,10 +408,18 @@ func (pot *Pot) Run() {
 		switch pot.status {
 		case STATUS_POT:
 			pot.PrintPot(wc, lc)
+			pot.win.Refresh()
 		case STATUS_HELP:
 			pot.PrintHelp(wc)
+			pot.win.Refresh()
+		case STATUS_INFO:
+			pot.winInfo, _ = gnc.NewWindow(Y_HELP, X_HELP, my/2-Y_HELP/2, mx/2-X_HELP/2)
+			pot.PrintPot(wc, lc)
+			pot.PrintInfo()
+			pot.winInfo.Border('|', '|', '-', '-', '+', '+', '+', '+')
+			pot.win.Refresh()
+			pot.winInfo.Refresh()
 		}
-		pot.win.Refresh()
 
 		// Handle Events
 		select {
@@ -448,8 +468,15 @@ func (pot *Pot) Run() {
 						pot.RmContainer(&pot.snapshot[c])
 					}
 				}
+				if kk == 'i' {
+					pot.status = STATUS_INFO
+				}
 			case STATUS_HELP:
 				if kk == 'h' {
+					pot.status = STATUS_POT
+				}
+			case STATUS_INFO:
+				if kk == 'i' {
 					pot.status = STATUS_POT
 				}
 			}
@@ -469,7 +496,9 @@ func NewPot(c *DockerCli) *Pot {
 		STATUS_POT,
 		[]Container{},
 		nil,
+		nil,
 		false, // show processes
+		false,
 	}
 }
 
