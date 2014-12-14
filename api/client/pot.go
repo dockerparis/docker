@@ -101,6 +101,7 @@ type Pot struct {
 	status Status		// Current status
 	snapshot []Container	// Current containers/processes state
 	win *gnc.Window		// goncurse Window
+	showProcesses bool	// whether or not to show processes
 }
 
 var (
@@ -210,8 +211,10 @@ func (pot *Pot) UpdatePot(lc int, wc int) {
 	ss := make([]PrintedLine, 0, 42)
 	for _, cnt := range pot.snapshot {
 		ss = append(ss, PrintedLine{cnt.container.Format(wc), true, false})
-		for _, proc := range cnt.processes {
-			ss = append(ss, PrintedLine{proc.Format(wc), false, true})
+		if pot.showProcesses {
+			for _, proc := range cnt.processes {
+				ss = append(ss, PrintedLine{proc.Format(wc), false, true})
+			}
 		}
 	}
 	if active < 0 {
@@ -318,6 +321,9 @@ func (pot *Pot) Run() {
 				if kk == 'h' {
 					pot.status = STATUS_HELP
 				}
+				if kk == 'a' {
+					pot.showProcesses = !pot.showProcesses
+				}
 			case STATUS_HELP:
 				if kk == 'h' {
 					pot.status = STATUS_POT
@@ -333,5 +339,12 @@ func (pot *Pot) Run() {
 }
 
 func NewPot(c *DockerCli) *Pot {
-	return &Pot{c, STATUS_POT, []Container{}, nil}
+	// default settings
+	return &Pot{
+		c,
+		STATUS_POT,
+		[]Container{},
+		nil,
+		false, // show processes
+	}
 }
