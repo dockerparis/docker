@@ -89,6 +89,7 @@ type Container struct {
 	container  ContainerLine // information about the container
 	processes  []ProcessLine // information about the processes
 	isSelected bool          // container selection
+	showProcesses bool	 // whether or not to show processes
 }
 
 type PrintedLine struct {
@@ -103,7 +104,7 @@ type Pot struct {
 	status        Status      // Current status
 	snapshot      []Container // Current containers/processes state
 	win           *gnc.Window // goncurse Window
-	showProcesses bool        // whether or not to show processes
+	showGlobalProcesses bool        // whether or not to show processes
 }
 
 var (
@@ -160,6 +161,7 @@ func (pot *Pot) Snapshot() []Container {
 	for _, out := range outs.Data {
 		var c Container
 
+		c.showProcesses = false
 		c.container.Id = out.Get("Id")
 		c.container.Command = strconv.Quote(out.Get("Command"))
 		c.container.Image = "Soon"
@@ -187,6 +189,7 @@ func (pot *Pot) Snapshot() []Container {
 		for _, cn := range pot.snapshot {
 			if cn.container.Id == c.container.Id {
 				c.isSelected = cn.isSelected
+				c.showProcesses = cn.showProcesses
 				break
 			}
 		}
@@ -229,7 +232,7 @@ func (pot *Pot) UpdatePot(lc int, wc int) {
 			false,
 			cnt.isSelected,
 		})
-		if pot.showProcesses {
+		if pot.showGlobalProcesses || cnt.showProcesses {
 			for _, proc := range cnt.processes {
 				ss = append(ss, PrintedLine{proc.Format(wc), false, true, false})
 			}
@@ -339,8 +342,11 @@ func (pot *Pot) Run() {
 				if kk == 'h' {
 					pot.status = STATUS_HELP
 				}
+				if kk == 'A' {
+					pot.showGlobalProcesses = !pot.showGlobalProcesses
+				}
 				if kk == 'a' {
-					pot.showProcesses = !pot.showProcesses
+					pot.snapshot[active].showProcesses = !pot.snapshot[active].showProcesses
 				}
 				if kk == ' ' {
 					pot.snapshot[active].isSelected = !pot.snapshot[active].isSelected
