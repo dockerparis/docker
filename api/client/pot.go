@@ -364,6 +364,22 @@ func (pot *Pot) KillContainer(c *Container) {
 	}(id)
 }
 
+func (pot *Pot) PauseContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		// @todo: use docker API
+		exec.Command("docker", "pause", id).Run()
+	}(id)
+}
+
+func (pot *Pot) UnpauseContainer(c *Container) {
+	id := c.container.Id
+	go func (id string) {
+		// @todo: use docker API
+		exec.Command("docker", "unpause", id).Run()
+	}(id)
+}
+
 func (pot *Pot) Run() {
 	var err error
 
@@ -468,6 +484,16 @@ func (pot *Pot) Run() {
 				if kk == 'r' {
 					for _, c := range pot.getSelectedContainers() {
 						pot.RmContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'p' {
+					for _, c := range pot.getSelectedContainers() {
+						pot.PauseContainer(&pot.snapshot[c])
+					}
+				}
+				if kk == 'P' {
+					for _, c := range pot.getSelectedContainers() {
+						pot.UnpauseContainer(&pot.snapshot[c])
 					}
 				}
 			case STATUS_HELP:
