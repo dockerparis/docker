@@ -69,10 +69,15 @@ func (c *ContainerLine) Format(column_width int) string {
 // ProcessLine contains information about a process
 type ProcessLine ContainerLine
 
-func (c *ProcessLine) String() string {
-	return fmt.Sprintf(strings.Join(
-		[]string{"", "", c.Id, c.Command,
-			c.Uptime, c.Status, c.CPU, c.RAM}, "\t"))
+func (c *ProcessLine) Format(column_width int) string {
+	return prettyColumn("", column_width) +
+		prettyColumn("", column_width) +
+		prettyColumn(c.Id, column_width) +
+		prettyColumn(c.Command, column_width) +
+		prettyColumn(c.Uptime, column_width) +
+		prettyColumn(c.Status, column_width) +
+		prettyColumn(c.CPU, column_width) +
+		prettyColumn(c.RAM, column_width)
 }
 
 type Container struct {
@@ -85,6 +90,38 @@ var (
 	scroll         = 0
 )
 
+// Returns the running processes for the current Container
+func (pot *Pot) GetProcesses(cid string) []ProcessLine {
+	res := make([]ProcessLine, 0, 0)
+	val := url.Values{}
+	val.Set("ps_args", "-o pid,etime,%cpu,%mem,cmd")
+	stream, _, err := pot.c.call("GET", "/containers/"+cid+"/top?"+val.Encode(), nil, false)
+	if err != nil {
+		return res
+	}
+	var procs engine.Env
+	if err := procs.Decode(stream); err != nil {
+		return res
+	}
+	processes := [][]string{}
+	if err := procs.GetJson("Processes", &processes); err != nil {
+		return res
+	}
+	for _, proc := range processes {
+		var p ProcessLine
+
+		p.Id = proc[0]
+		p.Uptime = proc[1]
+		p.CPU = proc[2]
+		p.RAM = proc[3]
+		p.Command = proc[4]
+
+		res = append(res, p)		
+	}
+	
+	return res
+}
+
 // Returns the list of running containers as well as internal processes
 func (pot *Pot) Snapshot() []Container {
 	res := make([]Container, 0, 16)
@@ -93,12 +130,10 @@ func (pot *Pot) Snapshot() []Container {
 	v.Set("all", "1")
 	body, _, err := readBody(pot.c.call("GET", "/containers/json?"+v.Encode(), nil, false))
 	if err != nil {
-		fmt.Printf("readBody failed %v\n", err)
 		return res
 	}
 	outs := engine.NewTable("Created", 0)
 	if _, err = outs.ReadListFrom(body); err != nil {
-		fmt.Printf("what?\n")
 		return res
 	}
 	for _, out := range outs.Data {
@@ -110,6 +145,8 @@ func (pot *Pot) Snapshot() []Container {
 		c.container.Name = out.GetList("Names")[0]
 		c.container.Uptime = units.HumanDuration(time.Now().UTC().Sub(time.Unix(out.GetInt64("Created"), 0)))
 		c.container.Status = out.Get("Status")
+
+		c.processes = pot.GetProcesses(c.container.Id)
 
 		res = append(res, c)
 	}
@@ -135,7 +172,7 @@ func (pot *Pot) Update(win *gnc.Window, lc int, wc int, cnts []Container) {
 	for _, cnt := range cnts {
 		ss = append(ss, cnt.container.Format(wc))
 		for _, proc := range cnt.processes {
-			ss = append(ss, proc.String())
+			ss = append(ss, proc.Format(wc))
 		}
 	}
 	if active < 0 {
@@ -196,6 +233,7 @@ func (pot *Pot) Run() {
 				active = active - 1
 			}
 		case <-t:
+			recompute = true
 		case <-s:
 			recompute = true
 			gnc.End()
