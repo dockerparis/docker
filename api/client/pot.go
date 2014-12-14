@@ -17,7 +17,10 @@ import (
 )
 
 const NB_COLUMNS = 8
-const COLOR_CONTAINER = 2
+const (
+	COLOR_CONTAINER = 2
+	COLOR_SELECTION = 3
+)
 
 type Status int // What we are doing
 
@@ -83,14 +86,16 @@ func (c *ProcessLine) Format(column_width int) string {
 }
 
 type Container struct {
-	container ContainerLine // information about the container
-	processes []ProcessLine // information about the processes
+	container  ContainerLine // information about the container
+	processes  []ProcessLine // information about the processes
+	isSelected bool          // container selection
 }
 
 type PrintedLine struct {
 	line        string // the line
 	isContainer bool   // is this line a container?
 	isProcess   bool   // is this line a process?
+	isActive    bool   // is this line selected?
 }
 
 type Pot struct {
@@ -179,6 +184,13 @@ func (pot *Pot) Snapshot() []Container {
 		c.container.CPU = fmt.Sprintf("%.1f", total_cpu)
 		c.container.RAM = fmt.Sprintf("%.1f", total_ram)
 
+		for _, cn := range pot.snapshot {
+			if cn.container.Id == c.container.Id {
+				c.isSelected = cn.isSelected
+				break
+			}
+		}
+
 		res = append(res, c)
 	}
 
@@ -194,7 +206,11 @@ func (pot *Pot) PrintActive(l PrintedLine, lc int, i int) {
 		pot.win.Println(l.line)
 		pot.win.AttrOff(gnc.A_REVERSE)
 	} else {
-		if l.isContainer {
+		if l.isActive {
+			pot.win.ColorOn(COLOR_SELECTION)
+			pot.win.Println(l.line)
+			pot.win.ColorOff(COLOR_SELECTION)
+		} else if l.isContainer {
 			pot.win.ColorOn(COLOR_CONTAINER)
 			pot.win.Println(l.line)
 			pot.win.ColorOff(COLOR_CONTAINER)
@@ -207,10 +223,15 @@ func (pot *Pot) PrintActive(l PrintedLine, lc int, i int) {
 func (pot *Pot) UpdatePot(lc int, wc int) {
 	ss := make([]PrintedLine, 0, 42)
 	for _, cnt := range pot.snapshot {
-		ss = append(ss, PrintedLine{cnt.container.Format(wc), true, false})
+		ss = append(ss, PrintedLine{
+			cnt.container.Format(wc),
+			true,
+			false,
+			cnt.isSelected,
+		})
 		if pot.showProcesses {
 			for _, proc := range cnt.processes {
-				ss = append(ss, PrintedLine{proc.Format(wc), false, true})
+				ss = append(ss, PrintedLine{proc.Format(wc), false, true, false})
 			}
 		}
 	}
@@ -286,7 +307,7 @@ func (pot *Pot) Run() {
 	for {
 		// Print screen
 		my, mx := pot.win.MaxYX()
-		lc := my - 2 // size max of y - header (1)
+		lc := my - 2 // size max of y - header (2)
 		wc := (mx - 1) / NB_COLUMNS
 		pot.win.Erase()
 		if mx < 40 || my < 5 {
@@ -320,6 +341,9 @@ func (pot *Pot) Run() {
 				}
 				if kk == 'a' {
 					pot.showProcesses = !pot.showProcesses
+				}
+				if kk == ' ' {
+					pot.snapshot[active].isSelected = !pot.snapshot[active].isSelected
 				}
 			case STATUS_HELP:
 				if kk == 'h' {
