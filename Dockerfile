@@ -43,7 +43,6 @@ RUN	apt-get update && apt-get install -y \
 	mercurial \
 	ncurses-dev \
 	parallel \
-	pkg-config \
 	reprepro \
 	ruby1.9.1 \
 	ruby1.9.1-dev \
